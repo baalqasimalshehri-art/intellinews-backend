@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr
+from datetime import datetime
 from app.database import get_db, SessionLocal
 from app.models.user import User
 from app.models.scraping_job import ScrapingJob
+from app.models.notification import Notification
 from app.services.openai_service import openai_service
 from app.services.user_scraper import user_scraper_service
 from app.utils.auth import get_current_user
@@ -56,6 +58,21 @@ def start_scraping_job_for_user(user_id: int, job_id: int):
             job_id=job_id,
             max_articles_per_source=10
         )
+
+        # After scraping completes successfully, create success notification
+        job = db.query(ScrapingJob).filter(ScrapingJob.id == job_id).first()
+        if job and job.status == 'completed':
+            notification = Notification(
+                user_id=user_id,
+                title="✅ Scraping Complete",
+                message=f"Found {job.articles_saved} new articles! View them on your Dashboard.",
+                type="success",
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.add(notification)
+            db.commit()
+
     except Exception as e:
         print(f"Error in auto-scraping for user {user_id}: {e}")
     finally:
@@ -119,6 +136,18 @@ async def update_user_preferences(
                 db.add(scraping_job)
                 db.commit()
                 db.refresh(scraping_job)
+
+                # Create notification for preference-triggered scraping
+                notification = Notification(
+                    user_id=user_id,
+                    title="🔄 Scraping Started",
+                    message=f"Finding articles based on your updated preferences: {', '.join(preferences.topics[:3])}...",
+                    type="info",
+                    is_read=False,
+                    created_at=datetime.utcnow()
+                )
+                db.add(notification)
+                db.commit()
 
                 # Start background scraping
                 background_tasks.add_task(

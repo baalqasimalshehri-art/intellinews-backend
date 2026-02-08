@@ -11,10 +11,12 @@ import signal
 import sys
 from app.tasks.newsletter_tasks import start_newsletter_scheduler
 from app.tasks.scraping_retry_tasks import start_retry_scheduler, shutdown_retry_scheduler
+from app.tasks.auto_scraping_tasks import start_auto_scraper, shutdown_auto_scraper
 
 # Global scheduler references
 newsletter_scheduler = None
 retry_scheduler_active = False
+auto_scraper_active = False
 
 
 def signal_handler(sig, frame):
@@ -29,15 +31,19 @@ def signal_handler(sig, frame):
         print("[Scheduler] Stopping retry scheduler...")
         shutdown_retry_scheduler()
 
+    if auto_scraper_active:
+        print("[Scheduler] Stopping auto-scraper...")
+        shutdown_auto_scraper()
+
     print("[Scheduler] All schedulers stopped. Exiting.")
     sys.exit(0)
 
 
 def main():
     """
-    Start the newsletter and retry schedulers and keep them running
+    Start the newsletter, retry, and auto-scraping schedulers and keep them running
     """
-    global newsletter_scheduler, retry_scheduler_active
+    global newsletter_scheduler, retry_scheduler_active, auto_scraper_active
 
     print("=" * 60)
     print("IntelliNews Background Schedulers")
@@ -45,6 +51,7 @@ def main():
     print("Starting schedulers...")
     print("  1. Newsletter Scheduler (hourly checks)")
     print("  2. Scraping Retry Scheduler (every 30 minutes)")
+    print("  3. Auto-Scraper (every 6 hours)")
     print("=" * 60)
 
     # Register signal handlers for graceful shutdown
@@ -63,6 +70,12 @@ def main():
         retry_scheduler_active = True
         print("[Scheduler] Scraping retry scheduler started successfully!")
 
+        # Start the auto-scraper
+        print("[Scheduler] Starting 6-hour auto-scraper...")
+        start_auto_scraper()
+        auto_scraper_active = True
+        print("[Scheduler] Auto-scraper started successfully!")
+
         print("[Scheduler] All schedulers running. Press Ctrl+C to stop.")
         print("=" * 60)
 
@@ -80,6 +93,8 @@ def main():
             newsletter_scheduler.shutdown()
         if retry_scheduler_active:
             shutdown_retry_scheduler()
+        if auto_scraper_active:
+            shutdown_auto_scraper()
         sys.exit(0)
     except Exception as e:
         print(f"[Scheduler] Error: {e}")
@@ -87,6 +102,8 @@ def main():
             newsletter_scheduler.shutdown()
         if retry_scheduler_active:
             shutdown_retry_scheduler()
+        if auto_scraper_active:
+            shutdown_auto_scraper()
         sys.exit(1)
 
 
