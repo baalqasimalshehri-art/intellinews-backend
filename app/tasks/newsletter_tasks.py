@@ -280,7 +280,7 @@ def start_newsletter_scheduler():
     scheduler.add_job(
         generate_and_send_newsletters,
         'cron',
-        minute=0,  # Run at the top of every hour
+        minute=10,  # Run at 10 minutes past every hour
         id='hourly_newsletter_check'
     )
 
