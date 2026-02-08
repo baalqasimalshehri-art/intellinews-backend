@@ -34,7 +34,7 @@ def main():
     print("IntelliNews Newsletter Scheduler")
     print("=" * 60)
     print("Starting newsletter scheduler...")
-    print("Newsletters will be sent daily at 6:00 AM UTC")
+    print("Newsletters sent based on user preferences (hourly check)")
     print("=" * 60)
 
     # Register signal handlers for graceful shutdown
