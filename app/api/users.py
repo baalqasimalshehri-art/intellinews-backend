@@ -243,12 +243,15 @@ async def get_my_profile(
     db: Session = Depends(get_db)
 ):
     """Get current user's profile"""
+    # Derive name from email (username part before @)
+    name = current_user.email.split('@')[0] if current_user.email else "User"
+
     return {
         "id": current_user.id,
-        "name": current_user.name,
+        "name": name,
         "email": current_user.email,
         "role": current_user.role,
-        "status": "Active",  # Can be extended later with a status field in User model
+        "status": "Active" if current_user.is_active else "Inactive",
         "created_at": current_user.created_at.isoformat() if hasattr(current_user, 'created_at') and current_user.created_at else None,
         "preferences": current_user.preferences
     }
@@ -262,9 +265,8 @@ async def update_my_profile(
 ):
     """Update current user's profile"""
     try:
-        # Update name if provided
-        if profile_data.name is not None:
-            current_user.name = profile_data.name
+        # Note: User model doesn't have a 'name' field, so we ignore it
+        # Name is derived from email on the frontend
 
         # Update email if provided and not already taken
         if profile_data.email is not None and profile_data.email != current_user.email:
@@ -285,12 +287,15 @@ async def update_my_profile(
         db.commit()
         db.refresh(current_user)
 
+        # Derive name from email
+        name = current_user.email.split('@')[0] if current_user.email else "User"
+
         return {
             "success": True,
             "message": "Profile updated successfully",
             "user": {
                 "id": current_user.id,
-                "name": current_user.name,
+                "name": name,
                 "email": current_user.email,
                 "role": current_user.role
             }
