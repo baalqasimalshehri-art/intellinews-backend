@@ -48,6 +48,14 @@ class Settings(BaseSettings):
         """Parse MIN_ARTICLE_DATE to datetime object"""
         return datetime.strptime(self.MIN_ARTICLE_DATE, "%Y-%m-%d")
 
+    @property
+    def database_url(self) -> str:
+        """Get database URL with correct dialect for SQLAlchemy 2.0"""
+        # SQLAlchemy 2.0 requires postgresql:// instead of postgres://
+        if self.DATABASE_URL.startswith("postgres://"):
+            return self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        return self.DATABASE_URL
+
 
 # Global settings instance
 settings = Settings()

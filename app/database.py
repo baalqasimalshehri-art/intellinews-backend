@@ -6,7 +6,7 @@ from app.config import settings
 
 # Create database engine with optimized connection pooling
 engine = create_engine(
-    settings.DATABASE_URL,
+    settings.database_url,  # Use property that converts postgres:// to postgresql://
     poolclass=QueuePool,
     pool_size=10,  # Number of connections to maintain
     max_overflow=20,  # Maximum overflow connections
