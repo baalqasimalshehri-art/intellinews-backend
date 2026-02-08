@@ -64,6 +64,10 @@ class EmailService:
 
         except Exception as e:
             print(f"Error sending newsletter to {to_email}: {e}")
+            print(f"Error type: {type(e).__name__}")
+            print(f"SMTP Server: {self.smtp_server}:{self.smtp_port}")
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
             return False
 
     def _generate_newsletter_html(
