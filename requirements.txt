@@ -27,8 +27,8 @@ aiohttp==3.9.1
 # Background Tasks
 apscheduler==3.10.4
 
-# Email (Gmail with app password)
-# No additional package needed - using smtplib (built-in)
+# Email
+resend==2.4.0  # Transactional email service (HTTP-based, works on Railway)
 
 # Utilities
 python-dotenv==1.0.0

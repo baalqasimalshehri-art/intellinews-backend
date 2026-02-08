@@ -12,9 +12,8 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str
 
-    # Email (Gmail with App Password)
-    GMAIL_EMAIL: str
-    GMAIL_APP_PASSWORD: str
+    # Email (Resend API)
+    RESEND_API_KEY: str
     FROM_EMAIL: str
 
     # Authentication

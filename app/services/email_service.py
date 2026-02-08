@@ -1,21 +1,16 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import resend
 from typing import List
 from datetime import datetime
 from app.config import settings
 
 
 class EmailService:
-    """Service for sending emails using Gmail with app password"""
+    """Service for sending emails using Resend API"""
 
     def __init__(self):
-        self.gmail_email = settings.GMAIL_EMAIL
-        self.gmail_password = settings.GMAIL_APP_PASSWORD
         self.from_email = settings.FROM_EMAIL
         self.frontend_url = settings.FRONTEND_URL
-        self.smtp_server = "smtp.gmail.com"
-        self.smtp_port = 465  # Use SSL port instead of STARTTLS port
+        resend.api_key = settings.RESEND_API_KEY
 
     def send_newsletter(
         self,
@@ -37,12 +32,6 @@ class EmailService:
             True if email sent successfully, False otherwise
         """
         try:
-            # Create message
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = f"Your {frequency.capitalize()} IntelliNews Brief - {datetime.now().strftime('%B %d, %Y')}"
-            msg["From"] = self.from_email
-            msg["To"] = to_email
-
             # Generate HTML content
             html_content = self._generate_newsletter_html(
                 user_name=user_name,
@@ -50,22 +39,21 @@ class EmailService:
                 frequency=frequency
             )
 
-            # Attach HTML content
-            html_part = MIMEText(html_content, "html")
-            msg.attach(html_part)
+            # Send email using Resend API
+            params = {
+                "from": self.from_email,
+                "to": [to_email],
+                "subject": f"Your {frequency.capitalize()} IntelliNews Brief - {datetime.now().strftime('%B %d, %Y')}",
+                "html": html_content,
+            }
 
-            # Send email using SMTP_SSL for port 465
-            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
-                server.login(self.gmail_email, self.gmail_password)
-                server.send_message(msg)
-
-            print(f"Newsletter sent successfully to {to_email}")
+            email = resend.Emails.send(params)
+            print(f"Newsletter sent successfully to {to_email} (Resend ID: {email.get('id', 'N/A')})")
             return True
 
         except Exception as e:
             print(f"Error sending newsletter to {to_email}: {e}")
             print(f"Error type: {type(e).__name__}")
-            print(f"SMTP Server: {self.smtp_server}:{self.smtp_port}")
             import traceback
             print(f"Full traceback: {traceback.format_exc()}")
             return False
@@ -375,12 +363,6 @@ class EmailService:
             # Email subject
             subject = "IntelliNews - Password Reset Request"
 
-            # Create message
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = self.from_email
-            msg["To"] = to_email
-
             # Generate HTML content
             html_content = f"""
 <!DOCTYPE html>
@@ -470,38 +452,22 @@ class EmailService:
 </html>
             """
 
-            # Plain text fallback
-            text_content = f"""
-Hello{f" {user_name}" if user_name else ""},
+            # Send email using Resend API
+            params = {
+                "from": self.from_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+            }
 
-We received a request to reset your IntelliNews password.
-
-To reset your password, click the link below:
-{reset_link}
-
-This link expires in 1 hour.
-
-If you didn't request this password reset, please ignore this email.
-
-© 2026 IntelliNews
-            """
-
-            # Attach both text and HTML versions
-            text_part = MIMEText(text_content, "plain")
-            html_part = MIMEText(html_content, "html")
-            msg.attach(text_part)
-            msg.attach(html_part)
-
-            # Send email via Gmail SMTP using SSL
-            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
-                server.login(self.gmail_email, self.gmail_password)
-                server.send_message(msg)
-
-            print(f"[Email] Password reset email sent to {to_email}")
+            email = resend.Emails.send(params)
+            print(f"[Email] Password reset email sent to {to_email} (Resend ID: {email.get('id', 'N/A')})")
             return True
 
         except Exception as e:
             print(f"[Email] Failed to send password reset email: {e}")
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
             return False
 
 
