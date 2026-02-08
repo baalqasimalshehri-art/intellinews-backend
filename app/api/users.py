@@ -99,9 +99,9 @@ async def update_user_preferences(
         db.commit()
         db.refresh(user)
 
-        # Only auto-scrape if explicitly requested by frontend
+        # Auto-scrape when user has topics (always enabled for fresh content)
         scraping_job = None
-        if preferences.autoScrape and preferences.topics and len(preferences.topics) > 0:
+        if preferences.topics and len(preferences.topics) > 0:
             # Check if there's already a running job
             existing_job = db.query(ScrapingJob).filter(
                 ScrapingJob.user_id == user_id,
@@ -126,6 +126,9 @@ async def update_user_preferences(
                     user_id=user_id,
                     job_id=scraping_job.id
                 )
+                print(f"[Preferences] Auto-scraping triggered for user {user.email} (job {scraping_job.id})")
+            else:
+                print(f"[Preferences] Skipping auto-scrape for user {user.email}, job {existing_job.id} already active")
 
         return {
             "success": True,

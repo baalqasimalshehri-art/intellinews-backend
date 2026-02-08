@@ -6,23 +6,117 @@ from app.database import SessionLocal
 from app.models.user import User
 from app.models.newsletter import NewsletterLog
 from app.models.notification import Notification
+from app.models.scraping_job import ScrapingJob
 from app.services.ranking import ranking_service
 from app.services.email_service import email_service
+from app.services.user_scraper import user_scraper_service
+import threading
 
 
-def should_send_newsletter_to_user(user: User, current_utc_time: datetime) -> bool:
+def has_fresh_articles(user: User, current_utc_time: datetime, db: Session) -> bool:
     """
-    Check if newsletter should be sent to user based on their preferences and timezone
+    Check if user has fresh scraped articles based on their newsletter frequency.
 
     Args:
         user: User object
         current_utc_time: Current UTC datetime
+        db: Database session
 
     Returns:
-        True if newsletter should be sent
+        True if user has recent articles, False if articles are stale
+    """
+    frequency = user.preferences.get('frequency', 'daily')
+
+    # Get user's latest completed scraping job
+    latest_job = db.query(ScrapingJob).filter(
+        ScrapingJob.user_id == user.id,
+        ScrapingJob.status == 'completed'
+    ).order_by(ScrapingJob.completed_at.desc()).first()
+
+    # No completed job = no fresh articles
+    if not latest_job or not latest_job.completed_at:
+        return False
+
+    # Define freshness thresholds based on frequency
+    if frequency == 'daily':
+        threshold = current_utc_time - timedelta(hours=24)
+    elif frequency == 'weekly':
+        threshold = current_utc_time - timedelta(days=7)
+    elif frequency == 'monthly':
+        threshold = current_utc_time - timedelta(days=30)
+    else:
+        threshold = current_utc_time - timedelta(hours=24)  # Default to daily
+
+    # Check if latest scraping job is fresh enough
+    return latest_job.completed_at >= threshold
+
+
+def trigger_background_scraping(user_id: int):
+    """
+    Trigger background scraping for a user in a separate thread.
+    Used when user has stale articles but it's time for newsletter.
+    """
+    def scrape_task():
+        db = SessionLocal()
+        try:
+            # Check for existing active jobs
+            existing_job = db.query(ScrapingJob).filter(
+                ScrapingJob.user_id == user_id,
+                ScrapingJob.status.in_(['pending', 'running'])
+            ).first()
+
+            if existing_job:
+                print(f"[Newsletter] User {user_id} already has active scraping job {existing_job.id}")
+                return
+
+            # Create new scraping job
+            new_job = ScrapingJob(
+                user_id=user_id,
+                status='pending',
+                created_at=datetime.utcnow(),
+                current_step='Queued by newsletter scheduler',
+                total_articles_found=0,
+                articles_processed=0,
+                articles_saved=0
+            )
+            db.add(new_job)
+            db.commit()
+            db.refresh(new_job)
+
+            print(f"[Newsletter] Triggering background scraping for user {user_id} (job {new_job.id})")
+
+            # Run scraping
+            user_scraper_service.scrape_for_user_with_tracking(
+                user_id=user_id,
+                job_id=new_job.id,
+                db=db
+            )
+
+        except Exception as e:
+            print(f"[Newsletter] Error triggering scraping for user {user_id}: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+    # Start scraping in background thread
+    thread = threading.Thread(target=scrape_task, daemon=True)
+    thread.start()
+
+
+def should_send_newsletter_to_user(user: User, current_utc_time: datetime, db: Session) -> tuple[bool, str]:
+    """
+    Check if newsletter should be sent to user based on their preferences, timezone, and article freshness.
+
+    Args:
+        user: User object
+        current_utc_time: Current UTC datetime
+        db: Database session
+
+    Returns:
+        Tuple of (should_send: bool, reason: str)
     """
     if not user.preferences:
-        return False
+        return False, "no preferences"
 
     frequency = user.preferences.get('frequency', 'daily')
     delivery_time = user.preferences.get('deliveryTime', '08:00')  # Default 8 AM local time
@@ -51,20 +145,28 @@ def should_send_newsletter_to_user(user: User, current_utc_time: datetime) -> bo
     time_matches = (user_local_time.hour == delivery_hour and abs(user_local_time.minute - delivery_min) < 60)
 
     if not time_matches:
-        return False
+        return False, "not scheduled time"
 
     # Get day of week in user's timezone
     current_day = user_local_time.strftime('%A').lower()
 
     # Check frequency
+    frequency_matches = False
     if frequency == 'daily':
-        return True
+        frequency_matches = True
     elif frequency == 'weekly':
-        return current_day == delivery_day
+        frequency_matches = current_day == delivery_day
     elif frequency == 'monthly':
-        return user_local_time.day == delivery_date
+        frequency_matches = user_local_time.day == delivery_date
 
-    return False
+    if not frequency_matches:
+        return False, f"not {frequency} delivery day"
+
+    # NEW: Check if user has fresh articles
+    if not has_fresh_articles(user, current_utc_time, db):
+        return False, "stale articles"
+
+    return True, "ready"
 
 
 def generate_and_send_newsletters():
@@ -97,8 +199,15 @@ def generate_and_send_newsletters():
 
         for user in users:
             try:
-                # Check if user should receive newsletter at this time (with timezone support)
-                if not should_send_newsletter_to_user(user, now_utc):
+                # Check if user should receive newsletter at this time (with timezone and freshness support)
+                should_send, reason = should_send_newsletter_to_user(user, now_utc, db)
+
+                if not should_send:
+                    # If articles are stale but it's the right time, trigger scraping
+                    if reason == "stale articles":
+                        print(f"User {user.email} has stale articles, triggering background scraping...")
+                        trigger_background_scraping(user.id)
+
                     skipped_count += 1
                     continue
 
