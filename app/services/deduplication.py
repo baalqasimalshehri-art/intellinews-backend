@@ -152,4 +152,6 @@ class DeduplicationService:
 
 
 # Global instance
-deduplication_service = DeduplicationService(similarity_threshold=0.95)
+# Lower threshold to 0.88 (88%) to allow similar but distinct articles
+# 0.95 was too aggressive and marked too many articles as duplicates
+deduplication_service = DeduplicationService(similarity_threshold=0.88)
