@@ -20,7 +20,7 @@ class NotificationCreate(BaseModel):
     link: str | None = None
 
 
-@router.get("/")
+@router.get("")
 async def get_notifications(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -151,7 +151,7 @@ async def dismiss_notification(
     return {"success": True, "message": "Notification dismissed"}
 
 
-@router.post("/")
+@router.post("")
 async def create_notification(
     notification_data: NotificationCreate,
     current_user: User = Depends(get_current_user),

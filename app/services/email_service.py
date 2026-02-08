@@ -15,7 +15,7 @@ class EmailService:
         self.from_email = settings.FROM_EMAIL
         self.frontend_url = settings.FRONTEND_URL
         self.smtp_server = "smtp.gmail.com"
-        self.smtp_port = 587
+        self.smtp_port = 465  # Use SSL port instead of STARTTLS port
 
     def send_newsletter(
         self,
@@ -54,9 +54,8 @@ class EmailService:
             html_part = MIMEText(html_content, "html")
             msg.attach(html_part)
 
-            # Send email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
+            # Send email using SMTP_SSL for port 465
+            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
                 server.login(self.gmail_email, self.gmail_password)
                 server.send_message(msg)
 
@@ -489,9 +488,8 @@ If you didn't request this password reset, please ignore this email.
             msg.attach(text_part)
             msg.attach(html_part)
 
-            # Send email via Gmail SMTP
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
+            # Send email via Gmail SMTP using SSL
+            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
                 server.login(self.gmail_email, self.gmail_password)
                 server.send_message(msg)
 
