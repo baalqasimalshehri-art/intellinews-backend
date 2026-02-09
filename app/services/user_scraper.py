@@ -11,10 +11,12 @@ from typing import List, Dict, Optional
 from app.models.article import Article
 from app.models.user import User
 from app.models.scraping_job import ScrapingJob
+from app.models.rss_feed import RSSFeed
 from app.scrapers.arxiv_scraper import ArxivScraper, ARXIV_CATEGORIES
 from app.scrapers.rss_scraper import RSSFeedScraper, RSS_FEEDS
 from app.services.openai_service import openai_service
 from app.services.deduplication import deduplication_service
+from app.database import SessionLocal
 
 
 class UserScraperService:
@@ -437,27 +439,31 @@ class UserScraperService:
         max_results: int = 10
     ) -> List[Dict]:
         """Scrape industry sources based on topics and keywords"""
-        # Scrape from industry RSS feeds
-        industry_feeds = [
-            RSS_FEEDS["techcrunch"],
-            RSS_FEEDS["venturebeat"],
-            RSS_FEEDS["wired"],
-            RSS_FEEDS["theverge"],
-            RSS_FEEDS["arstechnica"],
-            RSS_FEEDS["hackernews"],
-            RSS_FEEDS["mit_tech_review"],
-        ]
+        # Query active industry feeds from database
+        db = SessionLocal()
+        try:
+            industry_feeds_db = RSSFeed.get_active_feeds_by_type(db, "industry")
 
-        articles = self.rss_scraper.scrape_multiple_feeds(
-            industry_feeds,
-            source_type="industry",
-            limit=max_results
-        )
+            if not industry_feeds_db:
+                print("[UserScraper] No active industry RSS feeds found in database")
+                return []
 
-        # Filter by topic relevance (basic keyword matching)
-        filtered = self._filter_by_relevance(articles, topics, keywords)
+            # Extract URLs
+            feed_urls = [feed.url for feed in industry_feeds_db]
+            print(f"[UserScraper] Scraping {len(feed_urls)} industry feeds from database")
 
-        return filtered
+            articles = self.rss_scraper.scrape_multiple_feeds(
+                feed_urls,
+                source_type="industry",
+                limit=max_results
+            )
+
+            # Filter by topic relevance (basic keyword matching)
+            filtered = self._filter_by_relevance(articles, topics, keywords)
+
+            return filtered
+        finally:
+            db.close()
 
     def _scrape_financial(
         self,
@@ -466,22 +472,31 @@ class UserScraperService:
         max_results: int = 10
     ) -> List[Dict]:
         """Scrape financial sources based on topics and keywords"""
-        # Scrape from financial/news RSS feeds
-        financial_feeds = [
-            RSS_FEEDS["reuters_tech"],
-            RSS_FEEDS["bbc_tech"],
-        ]
+        # Query active financial feeds from database
+        db = SessionLocal()
+        try:
+            financial_feeds_db = RSSFeed.get_active_feeds_by_type(db, "financial")
 
-        articles = self.rss_scraper.scrape_multiple_feeds(
-            financial_feeds,
-            source_type="financial",
-            limit=max_results
-        )
+            if not financial_feeds_db:
+                print("[UserScraper] No active financial RSS feeds found in database")
+                return []
 
-        # Filter by topic relevance
-        filtered = self._filter_by_relevance(articles, topics, keywords)
+            # Extract URLs
+            feed_urls = [feed.url for feed in financial_feeds_db]
+            print(f"[UserScraper] Scraping {len(feed_urls)} financial feeds from database")
 
-        return filtered
+            articles = self.rss_scraper.scrape_multiple_feeds(
+                feed_urls,
+                source_type="financial",
+                limit=max_results
+            )
+
+            # Filter by topic relevance
+            filtered = self._filter_by_relevance(articles, topics, keywords)
+
+            return filtered
+        finally:
+            db.close()
 
     def _filter_by_relevance(
         self,

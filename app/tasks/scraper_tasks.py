@@ -4,6 +4,7 @@ from datetime import datetime
 from app.database import SessionLocal
 from app.models.article import Article
 from app.models.settings import SystemSettings
+from app.models.rss_feed import RSSFeed
 from app.scrapers.arxiv_scraper import ArxivScraper, ARXIV_CATEGORIES
 from app.scrapers.rss_scraper import RSSFeedScraper, RSS_FEEDS
 from app.services.openai_service import openai_service
@@ -43,32 +44,27 @@ def scrape_and_process_articles():
         print("Scraping industry sources with RSS feeds...")
         rss_scraper = RSSFeedScraper()
 
-        # Scrape all predefined RSS feeds
-        industry_feeds = [
-            RSS_FEEDS["techcrunch"],
-            RSS_FEEDS["venturebeat"],
-            RSS_FEEDS["wired"],
-            RSS_FEEDS["theverge"],
-            RSS_FEEDS["arstechnica"],
-            RSS_FEEDS["hackernews"],
-            RSS_FEEDS["mit_tech_review"],
-        ]
+        # Query active industry feeds from database
+        industry_feeds_db = RSSFeed.get_active_feeds_by_type(db, "industry")
+        if industry_feeds_db:
+            industry_feed_urls = [feed.url for feed in industry_feeds_db]
+            print(f"[Scheduler] Scraping {len(industry_feed_urls)} industry feeds from database")
+            industry_articles = rss_scraper.scrape_multiple_feeds(industry_feed_urls, source_type="industry", limit=10)
+            all_articles.extend(industry_articles)
+            print(f"Found {len(industry_articles)} articles from industry sources")
+        else:
+            print("[Scheduler] No active industry feeds found in database")
 
-        industry_articles = rss_scraper.scrape_multiple_feeds(industry_feeds, source_type="industry", limit=10)
-        all_articles.extend(industry_articles)
-        print(f"Found {len(industry_articles)} articles from industry sources")
-
-        # 3. Scrape tech/news sources using RSS feeds
-        print("Scraping news sources with RSS feeds...")
-
-        news_feeds = [
-            RSS_FEEDS["reuters_tech"],
-            RSS_FEEDS["bbc_tech"],
-        ]
-
-        news_articles = rss_scraper.scrape_multiple_feeds(news_feeds, source_type="financial", limit=10)
-        all_articles.extend(news_articles)
-        print(f"Found {len(news_articles)} articles from news sources")
+        # Query active financial feeds from database
+        financial_feeds_db = RSSFeed.get_active_feeds_by_type(db, "financial")
+        if financial_feeds_db:
+            financial_feed_urls = [feed.url for feed in financial_feeds_db]
+            print(f"[Scheduler] Scraping {len(financial_feed_urls)} financial feeds from database")
+            news_articles = rss_scraper.scrape_multiple_feeds(financial_feed_urls, source_type="financial", limit=10)
+            all_articles.extend(news_articles)
+            print(f"Found {len(news_articles)} articles from financial sources")
+        else:
+            print("[Scheduler] No active financial feeds found in database")
 
         # 4. Scrape custom RSS feeds from admin settings
         print("Checking for custom RSS feeds from admin settings...")

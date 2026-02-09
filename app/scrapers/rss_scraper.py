@@ -145,7 +145,10 @@ class RSSFeedScraper:
             return datetime.utcnow()
 
 
-# Common RSS feed sources
+# DEPRECATED: This dictionary is kept only as a fallback for backward compatibility
+# RSS feeds should be managed through the database (rss_feeds table) using the Admin UI
+# To add/edit/remove feeds, use the Admin API endpoints or the frontend Admin panel
+# The scraping code now queries the database instead of using these hardcoded URLs
 RSS_FEEDS = {
     "techcrunch": "https://techcrunch.com/feed/",
     "venturebeat": "https://venturebeat.com/feed/",
