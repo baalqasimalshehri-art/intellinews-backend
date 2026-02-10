@@ -108,6 +108,66 @@ def retry_cancelled_scraping_jobs():
         db.close()
 
 
+def cleanup_stuck_pending_jobs():
+    """
+    Find pending jobs older than 30 minutes and mark them as failed.
+    This prevents jobs from being stuck in pending forever.
+    """
+    db: Session = SessionLocal()
+    try:
+        logger.info("[Retry Scheduler] Checking for stuck pending jobs...")
+
+        # Get current time
+        now = datetime.utcnow()
+        timeout_threshold = now - timedelta(minutes=30)
+
+        # Find pending jobs older than 30 minutes
+        stuck_jobs = db.query(ScrapingJob).filter(
+            ScrapingJob.status == 'pending',
+            ScrapingJob.created_at < timeout_threshold
+        ).all()
+
+        logger.info(f"[Retry Scheduler] Found {len(stuck_jobs)} stuck pending jobs")
+
+        for job in stuck_jobs:
+            try:
+                # Mark as failed
+                job.status = 'failed'
+                job.error_message = 'Job timed out in pending status (>30 minutes)'
+                job.completed_at = now
+                job.current_step = 'timeout'
+                job.message = 'Job timed out and was automatically cancelled'
+
+                # Create notification for user
+                from app.models.notification import Notification
+                notification = Notification(
+                    user_id=job.user_id,
+                    title="⚠️ Scraping Job Timed Out",
+                    message="A pending job was stuck and has been cancelled. Please try again.",
+                    type="warning",
+                    is_read=False,
+                    created_at=now
+                )
+                db.add(notification)
+
+                logger.info(f"[Retry Scheduler] Marked job {job.id} as failed (timeout)")
+
+            except Exception as e:
+                logger.error(f"[Retry Scheduler] Error marking job {job.id} as failed: {e}")
+                db.rollback()
+                continue
+
+        db.commit()
+        logger.info(f"[Retry Scheduler] Cleaned up {len(stuck_jobs)} stuck jobs")
+
+    except Exception as e:
+        logger.error(f"[Retry Scheduler] Error in cleanup task: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+    finally:
+        db.close()
+
+
 def _run_scraping_in_background(job_id: int):
     """
     Run scraping in background thread for a specific job.
@@ -169,7 +229,7 @@ def start_retry_scheduler():
     """
     logger.info("[Retry Scheduler] Initializing scraping retry scheduler...")
 
-    # Add job to run every 30 minutes
+    # Job 1: Retry cancelled jobs
     retry_scheduler.add_job(
         retry_cancelled_scraping_jobs,
         'cron',
@@ -179,9 +239,21 @@ def start_retry_scheduler():
         max_instances=1  # Prevent overlapping runs
     )
 
+    # Job 2: Clean up stuck pending jobs
+    retry_scheduler.add_job(
+        cleanup_stuck_pending_jobs,
+        'cron',
+        minute='0,30',  # Run at 0 and 30 minutes of every hour
+        id='cleanup_stuck_pending',
+        replace_existing=True,
+        max_instances=1  # Prevent overlapping runs
+    )
+
     # Start scheduler
     retry_scheduler.start()
-    logger.info("[Retry Scheduler] Retry scheduler started (runs at :00 and :30 of every hour)")
+    logger.info("[Retry Scheduler] ✓ Started (runs at :00 and :30)")
+    logger.info("[Retry Scheduler] - Retrying cancelled jobs")
+    logger.info("[Retry Scheduler] - Cleaning stuck pending jobs")
 
 
 def shutdown_retry_scheduler():
