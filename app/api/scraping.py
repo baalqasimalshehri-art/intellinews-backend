@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+import threading
 from app.database import get_db, SessionLocal
 from app.utils.auth import get_current_user
 from app.models.user import User
@@ -261,14 +262,14 @@ def run_scraping_job_in_background(user_id: int, job_id: int, max_articles: int)
 @router.post("/start-background-job")
 async def start_background_scraping_job(
     request: ScrapeRequest,
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Start a background scraping job with progress tracking
 
-    Returns immediately with a job ID that can be used to check status
+    Returns immediately with a job ID that can be used to check status.
+    Uses a dedicated thread (not FastAPI BackgroundTasks) to ensure reliable execution.
     """
     # Check if user has preferences
     prefs = current_user.preferences or {}
@@ -305,13 +306,14 @@ async def start_background_scraping_job(
     db.commit()
     db.refresh(job)
 
-    # Start background task
-    background_tasks.add_task(
-        run_scraping_job_in_background,
-        user_id=current_user.id,
-        job_id=job.id,
-        max_articles=request.max_articles_per_source
+    # Use a dedicated thread instead of FastAPI BackgroundTasks for reliable execution
+    # BackgroundTasks can be dropped by the server before executing on Railway
+    thread = threading.Thread(
+        target=run_scraping_job_in_background,
+        args=(current_user.id, job.id, request.max_articles_per_source),
+        daemon=True
     )
+    thread.start()
 
     return {
         "job_id": job.id,

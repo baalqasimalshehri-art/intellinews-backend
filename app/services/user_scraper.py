@@ -19,6 +19,30 @@ from app.services.deduplication import deduplication_service
 from app.database import SessionLocal
 
 
+# Synonym map for topic expansion — used to match articles that use related terminology
+TOPIC_SYNONYMS = {
+    "ai": ["ai", "artificial intelligence", "machine learning", "deep learning", "neural", "llm", "gpt", "nlp", "ml", "generative"],
+    "artificial intelligence": ["ai", "artificial intelligence", "machine learning", "deep learning", "neural", "llm", "gpt", "nlp"],
+    "machine learning": ["machine learning", "ml", "deep learning", "neural network", "ai", "model training", "dataset"],
+    "technology": ["technology", "tech", "software", "digital", "computing", "innovation", "startup", "app", "platform"],
+    "finance": ["finance", "financial", "investment", "stock", "market", "economy", "banking", "trading", "portfolio", "fund"],
+    "healthcare": ["healthcare", "health", "medical", "medicine", "clinical", "patient", "hospital", "drug", "pharma", "biotech"],
+    "cybersecurity": ["cybersecurity", "security", "cyber", "hacker", "breach", "vulnerability", "malware", "threat", "privacy"],
+    "blockchain": ["blockchain", "crypto", "cryptocurrency", "bitcoin", "ethereum", "defi", "web3", "nft", "token"],
+    "data science": ["data science", "data", "analytics", "statistics", "python", "pandas", "visualization", "big data"],
+    "cloud": ["cloud", "aws", "azure", "google cloud", "saas", "kubernetes", "devops", "infrastructure", "serverless"],
+    "robotics": ["robotics", "robot", "automation", "autonomous", "drone", "manufacturing", "industrial"],
+    "climate": ["climate", "environment", "sustainability", "carbon", "green", "renewable", "energy", "emissions"],
+    "space": ["space", "nasa", "rocket", "satellite", "astronomy", "mars", "orbit", "spacecraft"],
+    "quantum": ["quantum", "qubit", "quantum computing", "quantum mechanics", "quantum cryptography"],
+    "startup": ["startup", "venture", "funding", "vc", "founder", "entrepreneur", "seed", "series a"],
+    "biotech": ["biotech", "biotechnology", "gene", "genomics", "crispr", "protein", "biology", "drug"],
+    "ecommerce": ["ecommerce", "e-commerce", "retail", "marketplace", "amazon", "shopify", "online shopping"],
+    "social media": ["social media", "twitter", "facebook", "instagram", "tiktok", "youtube", "influencer"],
+    "education": ["education", "edtech", "learning", "university", "school", "course", "online learning"],
+}
+
+
 class UserScraperService:
     """
     Service for scraping articles based on user preferences
@@ -498,42 +522,52 @@ class UserScraperService:
         finally:
             db.close()
 
+    def _get_expanded_terms(self, topics: List[str], keywords: List[str]) -> List[str]:
+        """Expand topics to include synonyms and related terms for broader matching"""
+        all_terms = [kw.lower() for kw in keywords]  # Start with explicit keywords
+        for topic in topics:
+            topic_lower = topic.lower().strip()
+            all_terms.append(topic_lower)
+            # Add synonyms if we have a direct match
+            if topic_lower in TOPIC_SYNONYMS:
+                all_terms.extend(TOPIC_SYNONYMS[topic_lower])
+            else:
+                # Partial match: e.g. "AI Development" matches the "ai" synonym list
+                for key, synonyms in TOPIC_SYNONYMS.items():
+                    if key in topic_lower or topic_lower in key:
+                        all_terms.extend(synonyms)
+        return list(set(all_terms))  # deduplicate
+
     def _filter_by_relevance(
         self,
         articles: List[Dict],
         topics: List[str],
         keywords: List[str]
     ) -> List[Dict]:
-        """Filter articles by topic and keyword relevance"""
+        """Filter articles by topic and keyword relevance with synonym expansion"""
         if not topics and not keywords:
             return articles
+
+        # Expand topics to include synonyms so "AI" matches "machine learning", etc.
+        expanded_terms = self._get_expanded_terms(topics, keywords)
+        print(f"[UserScraper] Filtering with expanded terms: {expanded_terms[:10]}...")
 
         relevant_articles = []
 
         for article in articles:
             title_lower = article.get("title", "").lower()
             content_lower = article.get("content", "").lower()
+            combined = title_lower + " " + content_lower
 
-            # Check if any topic or keyword appears in title or content
-            is_relevant = False
-
-            for topic in topics:
-                if topic.lower() in title_lower or topic.lower() in content_lower:
-                    is_relevant = True
-                    break
-
-            if not is_relevant:
-                for keyword in keywords:
-                    if keyword.lower() in title_lower or keyword.lower() in content_lower:
-                        is_relevant = True
-                        break
-
-            if is_relevant:
+            if any(term in combined for term in expanded_terms):
                 relevant_articles.append(article)
 
-        # If no relevant articles found, return some anyway (with lower relevance)
+        print(f"[UserScraper] Relevance filter: {len(relevant_articles)}/{len(articles)} articles passed")
+
+        # If no relevant articles found, return ALL (not just 5) to avoid blocking saves
         if not relevant_articles and articles:
-            return articles[:5]
+            print(f"[UserScraper] No keyword matches — returning all {len(articles)} articles as fallback")
+            return articles
 
         return relevant_articles
 

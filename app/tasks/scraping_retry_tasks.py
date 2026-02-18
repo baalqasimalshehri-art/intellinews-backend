@@ -143,7 +143,7 @@ def cleanup_stuck_pending_jobs():
                 notification = Notification(
                     user_id=job.user_id,
                     title="⚠️ Scraping Job Timed Out",
-                    message="A pending job was stuck and has been cancelled. Please try again.",
+                    message="A scraping job timed out. The system will automatically retry in the next scheduled cycle (every 6 hours).",
                     type="warning",
                     is_read=False,
                     created_at=now
