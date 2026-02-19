@@ -378,35 +378,41 @@ DEFAULT_FEEDS = [
 
 def create_default_feeds():
     """Create default RSS feeds if they don't exist"""
+    added = 0
+    skipped = 0
     try:
         with engine.connect() as conn:
             for feed in DEFAULT_FEEDS:
-                # Check if feed already exists
+                # Check if feed already exists by name OR url
                 result = conn.execute(
-                    text("SELECT id FROM rss_feeds WHERE url = :url"),
-                    {"url": feed["url"]}
+                    text("SELECT id FROM rss_feeds WHERE url = :url OR name = :name"),
+                    {"url": feed["url"], "name": feed["name"]}
                 )
                 existing = result.first()
 
                 if not existing:
-                    # Insert new feed
-                    conn.execute(
-                        text("""
-                            INSERT INTO rss_feeds (name, url, source_type, is_active, created_at)
-                            VALUES (:name, :url, :source_type, true, NOW())
-                        """),
-                        {
-                            "name": feed["name"],
-                            "url": feed["url"],
-                            "source_type": feed["source_type"]
-                        }
-                    )
-                    conn.commit()
-                    print(f"✓ Added RSS feed: {feed['name']}")
+                    try:
+                        conn.execute(
+                            text("""
+                                INSERT INTO rss_feeds (name, url, source_type, is_active, created_at)
+                                VALUES (:name, :url, :source_type, true, NOW())
+                            """),
+                            {
+                                "name": feed["name"],
+                                "url": feed["url"],
+                                "source_type": feed["source_type"]
+                            }
+                        )
+                        conn.commit()
+                        print(f"✓ Added RSS feed: {feed['name']}")
+                        added += 1
+                    except Exception:
+                        conn.rollback()
+                        skipped += 1
                 else:
-                    print(f"  Feed already exists: {feed['name']}")
+                    skipped += 1
 
-        print(f"\n✅ Default RSS feeds initialized successfully!")
+        print(f"\n✅ Default RSS feeds initialized: {added} added, {skipped} already existed")
 
     except Exception as e:
         print(f"⚠️  Error creating default feeds: {e}")

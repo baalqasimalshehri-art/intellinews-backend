@@ -2,6 +2,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from pytz import timezone as pytz_timezone, utc, all_timezones
+import time
 from app.database import SessionLocal
 from app.models.user import User
 from app.models.newsletter import NewsletterLog
@@ -248,7 +249,8 @@ def generate_and_send_newsletters(force: bool = False):
                     print(f"No articles found for {user.email}")
                     continue
 
-                # Send newsletter
+                # Send newsletter (with small delay to respect Resend rate limit: 2 req/sec)
+                time.sleep(0.6)
                 print(f"Sending newsletter to {user.email}...")
                 success = email_service.send_newsletter(
                     to_email=user.email,
