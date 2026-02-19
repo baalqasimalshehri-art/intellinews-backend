@@ -144,9 +144,8 @@ def cleanup_stuck_pending_jobs():
                     user_id=job.user_id,
                     title="⚠️ Scraping Job Timed Out",
                     message="A scraping job timed out. The system will automatically retry in the next scheduled cycle (every 6 hours).",
-                    type="warning",
-                    is_read=False,
-                    created_at=now
+                    notification_type="warning",
+                    link="/history"
                 )
                 db.add(notification)
 
