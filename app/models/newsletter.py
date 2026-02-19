@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -13,6 +13,8 @@ class NewsletterLog(Base):
     recipients = Column(Integer, default=0)
     status = Column(String(50), default='Completed')  # 'Completed', 'Failed', 'In Progress'
     created_at = Column(DateTime, server_default=func.now())
+    # Per-user tracking: nullable so existing rows aren't broken
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     def to_dict(self):
         """Convert newsletter log to dictionary"""

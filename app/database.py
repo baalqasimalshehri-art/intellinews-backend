@@ -49,3 +49,11 @@ def init_db():
 
     # Create all tables
     Base.metadata.create_all(bind=engine)
+
+    # Migration: add user_id to newsletter_logs if it doesn't exist (for per-user tracking)
+    with engine.connect() as conn:
+        conn.execute(text("""
+            ALTER TABLE newsletter_logs
+            ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL
+        """))
+        conn.commit()

@@ -14,6 +14,35 @@ from app.services.user_scraper import user_scraper_service
 import threading
 
 
+def already_sent_this_period(user: User, current_utc_time: datetime, db: Session) -> bool:
+    """
+    Check if a newsletter was already sent to this user in the current period.
+    Prevents duplicate sends if scheduler restarts or runs twice.
+
+    Cooldown windows:
+      daily   → 23 hours
+      weekly  → 6 days
+      monthly → 28 days
+    """
+    frequency = user.preferences.get('frequency', 'daily') if user.preferences else 'daily'
+
+    if frequency == 'weekly':
+        window = timedelta(days=6)
+    elif frequency == 'monthly':
+        window = timedelta(days=28)
+    else:
+        window = timedelta(hours=23)
+
+    cutoff = current_utc_time - window
+
+    last_sent = db.query(NewsletterLog).filter(
+        NewsletterLog.user_id == user.id,
+        NewsletterLog.created_at >= cutoff
+    ).first()
+
+    return last_sent is not None
+
+
 def has_fresh_articles(user: User, current_utc_time: datetime, db: Session) -> bool:
     """
     Check if user has fresh scraped articles based on their newsletter frequency.
@@ -142,8 +171,9 @@ def should_send_newsletter_to_user(user: User, current_utc_time: datetime, db: S
     except:
         delivery_hour, delivery_min = 8, 0  # Default to 8:00 AM
 
-    # Check if current time in user's timezone matches their delivery time (within 1-hour window)
-    time_matches = (user_local_time.hour == delivery_hour and abs(user_local_time.minute - delivery_min) < 60)
+    # Check if current hour in user's timezone matches their delivery hour
+    # (scheduler fires at :00 each hour, so hour-level matching is correct)
+    time_matches = (user_local_time.hour == delivery_hour)
 
     if not time_matches:
         return False, "not scheduled time"
@@ -162,10 +192,6 @@ def should_send_newsletter_to_user(user: User, current_utc_time: datetime, db: S
 
     if not frequency_matches:
         return False, f"not {frequency} delivery day"
-
-    # NEW: Check if user has fresh articles
-    if not has_fresh_articles(user, current_utc_time, db):
-        return False, "stale articles"
 
     return True, "ready"
 
@@ -233,6 +259,12 @@ def generate_and_send_newsletters(force: bool = False):
                     print(f"Skipping user {user.email} - no topics or keywords")
                     continue
 
+                # Skip if already sent in this period (prevent duplicates on restart)
+                if already_sent_this_period(user, now_utc, db):
+                    print(f"Skipping user {user.email} - already sent newsletter this period")
+                    skipped_count += 1
+                    continue
+
                 # Rank articles for this user
                 print(f"Ranking articles for {user.email}...")
                 ranked_articles = ranking_service.rank_articles_for_user(
@@ -263,6 +295,20 @@ def generate_and_send_newsletters(force: bool = False):
                     sent_count += 1
                     print(f"✓ Newsletter sent to {user.email}")
 
+                    # Log per-user send (used by already_sent_this_period to prevent duplicates)
+                    try:
+                        per_user_log = NewsletterLog(
+                            subject=f"{frequency.capitalize()} IntelliNews Brief - {datetime.now().strftime('%B %d, %Y')}",
+                            recipients=1,
+                            status="Completed",
+                            user_id=user.id
+                        )
+                        db.add(per_user_log)
+                        db.commit()
+                    except Exception as log_error:
+                        print(f"  ⚠️  Error logging per-user send: {log_error}")
+                        db.rollback()
+
                     # Create notification for successful newsletter delivery
                     try:
                         notification = Notification(
@@ -270,7 +316,7 @@ def generate_and_send_newsletters(force: bool = False):
                             title="Newsletter Delivered",
                             message=f"Your personalized newsletter with {len(ranked_articles)} articles has been sent to {user.email}",
                             notification_type="success",
-                            link="/history"  # Link to newsletter history
+                            link="/history"
                         )
                         db.add(notification)
                         db.commit()
