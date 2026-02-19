@@ -72,6 +72,118 @@ DEFAULT_FEEDS = [
         "name": "The Verge",
         "url": "https://www.theverge.com/rss/index.xml",
         "source_type": "industry"
+    },
+    {
+        "name": "Wired",
+        "url": "https://www.wired.com/feed/rss",
+        "source_type": "industry"
+    },
+    {
+        "name": "Ars Technica",
+        "url": "https://feeds.arstechnica.com/arstechnica/index",
+        "source_type": "industry"
+    },
+    {
+        "name": "Hacker News Front Page",
+        "url": "https://hnrss.org/frontpage",
+        "source_type": "industry"
+    },
+    {
+        "name": "MIT Technology Review",
+        "url": "https://www.technologyreview.com/feed/",
+        "source_type": "industry"
+    },
+    {
+        "name": "ZDNet",
+        "url": "https://www.zdnet.com/news/rss.xml",
+        "source_type": "industry"
+    },
+    {
+        "name": "Engadget",
+        "url": "https://www.engadget.com/rss.xml",
+        "source_type": "industry"
+    },
+    {
+        "name": "Fast Company Tech",
+        "url": "https://www.fastcompany.com/technology/rss",
+        "source_type": "industry"
+    },
+    {
+        "name": "SiliconANGLE",
+        "url": "https://siliconangle.com/feed/",
+        "source_type": "industry"
+    },
+    {
+        "name": "InfoQ",
+        "url": "https://feed.infoq.com",
+        "source_type": "industry"
+    },
+    {
+        "name": "Dev.to",
+        "url": "https://dev.to/feed",
+        "source_type": "industry"
+    },
+    # Additional Financial Feeds
+    {
+        "name": "Seeking Alpha",
+        "url": "https://seekingalpha.com/feed.xml",
+        "source_type": "financial"
+    },
+    {
+        "name": "Benzinga",
+        "url": "https://www.benzinga.com/feed",
+        "source_type": "financial"
+    },
+    {
+        "name": "Forbes Business",
+        "url": "https://www.forbes.com/business/feed/",
+        "source_type": "financial"
+    },
+    {
+        "name": "Nasdaq News",
+        "url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets",
+        "source_type": "financial"
+    },
+    {
+        "name": "CoinDesk",
+        "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+        "source_type": "financial"
+    },
+    {
+        "name": "Investopedia News",
+        "url": "https://www.investopedia.com/feedbuilder/feed/getfeed?feedName=rss_headline",
+        "source_type": "financial"
+    },
+    {
+        "name": "Business Insider Markets",
+        "url": "https://markets.businessinsider.com/rss/news",
+        "source_type": "financial"
+    },
+    {
+        "name": "Motley Fool",
+        "url": "https://www.fool.com/feeds/index.aspx",
+        "source_type": "financial"
+    },
+    # Additional Academic Feeds
+    {
+        "name": "arXiv Machine Learning",
+        "url": "http://export.arxiv.org/rss/cs.LG",
+        "source_type": "academic"
+    },
+    {
+        "name": "arXiv Data Science",
+        "url": "http://export.arxiv.org/rss/stat.ML",
+        "source_type": "academic"
+    },
+    {
+        "name": "PLOS ONE",
+        "url": "https://journals.plos.org/plosone/feed/atom",
+        "source_type": "academic"
+    },
+    {
+        "name": "Nature News",
+        "url": "https://www.nature.com/nature.rss",
+        "source_type": "academic"
     }
 ]
 
