@@ -184,6 +184,194 @@ DEFAULT_FEEDS = [
         "name": "Nature News",
         "url": "https://www.nature.com/nature.rss",
         "source_type": "academic"
+    },
+    # --- Additional Industry / Tech Feeds ---
+    {
+        "name": "TechRepublic",
+        "url": "https://www.techrepublic.com/rssfeeds/articles/",
+        "source_type": "industry"
+    },
+    {
+        "name": "PCMag",
+        "url": "https://www.pcmag.com/rss/news",
+        "source_type": "industry"
+    },
+    {
+        "name": "Gizmodo",
+        "url": "https://gizmodo.com/rss",
+        "source_type": "industry"
+    },
+    {
+        "name": "9to5Mac",
+        "url": "https://9to5mac.com/feed/",
+        "source_type": "industry"
+    },
+    {
+        "name": "9to5Google",
+        "url": "https://9to5google.com/feed/",
+        "source_type": "industry"
+    },
+    {
+        "name": "Android Authority",
+        "url": "https://www.androidauthority.com/feed/",
+        "source_type": "industry"
+    },
+    {
+        "name": "Tom's Hardware",
+        "url": "https://www.tomshardware.com/feeds/all",
+        "source_type": "industry"
+    },
+    {
+        "name": "The Next Web",
+        "url": "https://thenextweb.com/feed/",
+        "source_type": "industry"
+    },
+    {
+        "name": "Digital Trends",
+        "url": "https://www.digitaltrends.com/feed/",
+        "source_type": "industry"
+    },
+    {
+        "name": "Slashdot",
+        "url": "https://rss.slashdot.org/Slashdot/slashdotMain",
+        "source_type": "industry"
+    },
+    {
+        "name": "O'Reilly Radar",
+        "url": "https://www.oreilly.com/radar/feed.xml",
+        "source_type": "industry"
+    },
+    {
+        "name": "GitHub Blog",
+        "url": "https://github.blog/feed/",
+        "source_type": "industry"
+    },
+    {
+        "name": "Google AI Blog",
+        "url": "https://blog.research.google/feeds/posts/default",
+        "source_type": "industry"
+    },
+    {
+        "name": "OpenAI Blog",
+        "url": "https://openai.com/blog/rss.xml",
+        "source_type": "industry"
+    },
+    {
+        "name": "Netflix Tech Blog",
+        "url": "https://netflixtechblog.com/feed",
+        "source_type": "industry"
+    },
+    {
+        "name": "AWS News Blog",
+        "url": "https://aws.amazon.com/blogs/aws/feed/",
+        "source_type": "industry"
+    },
+    {
+        "name": "Towards Data Science",
+        "url": "https://towardsdatascience.com/feed",
+        "source_type": "industry"
+    },
+    {
+        "name": "Smashing Magazine",
+        "url": "https://www.smashingmagazine.com/feed/",
+        "source_type": "industry"
+    },
+    # --- Additional Financial Feeds ---
+    {
+        "name": "Reuters Markets",
+        "url": "https://feeds.reuters.com/reuters/businessNews",
+        "source_type": "financial"
+    },
+    {
+        "name": "AP Business",
+        "url": "https://rsshub.app/apnews/topics/business-news",
+        "source_type": "financial"
+    },
+    {
+        "name": "The Economist Finance",
+        "url": "https://www.economist.com/finance-and-economics/rss.xml",
+        "source_type": "financial"
+    },
+    {
+        "name": "Harvard Business Review",
+        "url": "https://hbr.org/resources/rss/hbr-topic-rss.xml",
+        "source_type": "financial"
+    },
+    {
+        "name": "Inc. Magazine",
+        "url": "https://www.inc.com/rss",
+        "source_type": "financial"
+    },
+    {
+        "name": "Entrepreneur",
+        "url": "https://www.entrepreneur.com/latest.rss",
+        "source_type": "financial"
+    },
+    {
+        "name": "Bitcoin Magazine",
+        "url": "https://bitcoinmagazine.com/.rss/full/",
+        "source_type": "financial"
+    },
+    {
+        "name": "Cointelegraph",
+        "url": "https://cointelegraph.com/rss",
+        "source_type": "financial"
+    },
+    {
+        "name": "TechCrunch Startups",
+        "url": "https://techcrunch.com/category/startups/feed/",
+        "source_type": "financial"
+    },
+    # --- Additional Academic Feeds ---
+    {
+        "name": "arXiv Computation & Language",
+        "url": "http://export.arxiv.org/rss/cs.CL",
+        "source_type": "academic"
+    },
+    {
+        "name": "arXiv Computer Vision",
+        "url": "http://export.arxiv.org/rss/cs.CV",
+        "source_type": "academic"
+    },
+    {
+        "name": "arXiv Robotics",
+        "url": "http://export.arxiv.org/rss/cs.RO",
+        "source_type": "academic"
+    },
+    {
+        "name": "arXiv Quantitative Finance",
+        "url": "http://export.arxiv.org/rss/q-fin",
+        "source_type": "academic"
+    },
+    {
+        "name": "arXiv Cybersecurity",
+        "url": "http://export.arxiv.org/rss/cs.CR",
+        "source_type": "academic"
+    },
+    {
+        "name": "Science Daily - Technology",
+        "url": "https://www.sciencedaily.com/rss/computers_math/computer_science.xml",
+        "source_type": "academic"
+    },
+    {
+        "name": "Science Daily - AI",
+        "url": "https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml",
+        "source_type": "academic"
+    },
+    {
+        "name": "MIT News - AI",
+        "url": "https://news.mit.edu/topic/mitartificial-intelligence2-rss.xml",
+        "source_type": "academic"
+    },
+    {
+        "name": "Stanford AI Lab Blog",
+        "url": "https://ai.stanford.edu/blog/feed.xml",
+        "source_type": "academic"
+    },
+    {
+        "name": "DeepMind Blog",
+        "url": "https://deepmind.google/blog/rss.xml",
+        "source_type": "academic"
     }
 ]
 
