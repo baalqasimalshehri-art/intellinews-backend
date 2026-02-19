@@ -152,6 +152,7 @@ class DeduplicationService:
 
 
 # Global instance
-# Lower threshold to 0.88 (88%) to allow similar but distinct articles
-# 0.95 was too aggressive and marked too many articles as duplicates
-deduplication_service = DeduplicationService(similarity_threshold=0.88)
+# Threshold of 0.75 (75%) — only truly near-identical articles are rejected
+# 0.88 was still too aggressive: financial/industry news about same topic
+# regularly scores 0.80–0.90 even when the articles are completely different
+deduplication_service = DeduplicationService(similarity_threshold=0.75)

@@ -254,7 +254,7 @@ class UserScraperService:
                 if len(all_articles) == 0:
                     job.message = "No news found matching your topics and keywords. Try adjusting your preferences or adding different topics."
                 else:
-                    job.message = f"Analyzed {len(all_articles)} articles, but all were duplicates or already in your library. No new articles to show."
+                    job.message = f"Analyzed {len(all_articles)} articles — {failed_count} were already saved or too similar to existing content. Try scraping again later for fresher articles."
             elif saved_count < 3:
                 job.message = f"Analysis completed! Found {saved_count} new article{'s' if saved_count > 1 else ''} for you."
             else:
