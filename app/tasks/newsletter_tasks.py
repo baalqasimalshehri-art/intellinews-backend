@@ -169,7 +169,7 @@ def should_send_newsletter_to_user(user: User, current_utc_time: datetime, db: S
     return True, "ready"
 
 
-def generate_and_send_newsletters():
+def generate_and_send_newsletters(force: bool = False):
     """
     Generate personalized newsletters for eligible users based on their preferences
 
@@ -178,12 +178,15 @@ def generate_and_send_newsletters():
     2. Checks each user's delivery preferences (time, frequency)
     3. For eligible users, ranks articles based on their preferences
     4. Generates personalized HTML newsletter
-    5. Sends email via Gmail
+    5. Sends email via Resend
+
+    Args:
+        force: If True, bypass schedule checks and send to all users with preferences immediately
     """
     # Get current UTC time with timezone awareness
     now_utc = datetime.now(utc)
 
-    print(f"[{now_utc}] Starting newsletter generation task...")
+    print(f"[{now_utc}] Starting newsletter generation task... (force={force})")
     print(f"Current UTC time: {now_utc.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
     db = SessionLocal()
@@ -199,17 +202,18 @@ def generate_and_send_newsletters():
 
         for user in users:
             try:
-                # Check if user should receive newsletter at this time (with timezone and freshness support)
-                should_send, reason = should_send_newsletter_to_user(user, now_utc, db)
+                if not force:
+                    # Check if user should receive newsletter at this time (with timezone and freshness support)
+                    should_send, reason = should_send_newsletter_to_user(user, now_utc, db)
 
-                if not should_send:
-                    # If articles are stale but it's the right time, trigger scraping
-                    if reason == "stale articles":
-                        print(f"User {user.email} has stale articles, triggering background scraping...")
-                        trigger_background_scraping(user.id)
+                    if not should_send:
+                        # If articles are stale but it's the right time, trigger scraping
+                        if reason == "stale articles":
+                            print(f"User {user.email} has stale articles, triggering background scraping...")
+                            trigger_background_scraping(user.id)
 
-                    skipped_count += 1
-                    continue
+                        skipped_count += 1
+                        continue
 
                 # Skip users without preferences
                 if not user.preferences:

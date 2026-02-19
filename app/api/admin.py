@@ -1,6 +1,6 @@
 """Admin API endpoints for system management"""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text
 from typing import List, Optional, Any
@@ -552,7 +552,6 @@ class SendNewsletterRequest(BaseModel):
 @router.post("/send-newsletter")
 async def send_newsletter(
     request: SendNewsletterRequest,
-    background_tasks: BackgroundTasks,
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -577,12 +576,14 @@ async def send_newsletter(
                 "message": f"Test newsletter sent to {request.email}"
             }
         else:
-            # Send to all users in background (non-blocking)
-            background_tasks.add_task(generate_and_send_newsletters)
+            # Send to all users in background (non-blocking), force=True bypasses schedule checks
+            import threading
+            thread = threading.Thread(target=generate_and_send_newsletters, kwargs={"force": True}, daemon=True)
+            thread.start()
 
             return {
                 "success": True,
-                "message": "Newsletter job started. Emails will be sent in the background."
+                "message": "Newsletter job started. Emails will be sent to all active users in the background."
             }
 
     except HTTPException:
