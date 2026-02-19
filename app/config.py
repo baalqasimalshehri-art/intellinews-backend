@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
 
     # Email (Resend API)
-    RESEND_API_KEY: str
-    FROM_EMAIL: str
+    RESEND_API_KEY: str = ""
+    FROM_EMAIL: str = "IntelliNews <newsletter@alshehri050.shop>"
 
     # Authentication
     SECRET_KEY: str = "your-secret-key-change-in-production-please-use-a-strong-random-key"

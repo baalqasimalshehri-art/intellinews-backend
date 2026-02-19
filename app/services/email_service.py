@@ -8,9 +8,11 @@ class EmailService:
     """Service for sending emails using Resend API"""
 
     def __init__(self):
+        self.resend_api_key = settings.RESEND_API_KEY
         self.from_email = settings.FROM_EMAIL
         self.frontend_url = settings.FRONTEND_URL
-        resend.api_key = settings.RESEND_API_KEY
+        if self.resend_api_key:
+            resend.api_key = self.resend_api_key
 
     def send_newsletter(
         self,
@@ -31,6 +33,10 @@ class EmailService:
         Returns:
             True if email sent successfully, False otherwise
         """
+        if not self.resend_api_key:
+            print(f"[Email] Skipping newsletter to {to_email}: RESEND_API_KEY not configured")
+            return False
+
         try:
             # Generate HTML content
             html_content = self._generate_newsletter_html(
@@ -356,6 +362,10 @@ class EmailService:
         Returns:
             True if email sent successfully, False otherwise
         """
+        if not self.resend_api_key:
+            print(f"[Email] Skipping password reset to {to_email}: RESEND_API_KEY not configured")
+            return False
+
         try:
             # Create reset link using configured frontend URL
             reset_link = f"{self.frontend_url}/#/reset-password?token={reset_token}"
