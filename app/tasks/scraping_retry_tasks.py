@@ -22,24 +22,24 @@ retry_scheduler = BackgroundScheduler()
 
 def retry_cancelled_scraping_jobs():
     """
-    Check for cancelled scraping jobs older than 30 minutes
+    Check for failed or cancelled scraping jobs older than 30 minutes
     and automatically trigger new scraping for those users.
     """
     db: Session = SessionLocal()
     try:
-        logger.info("[Retry Scheduler] Checking for cancelled jobs to retry...")
+        logger.info("[Retry Scheduler] Checking for failed/cancelled jobs to retry...")
 
         # Get current time and 30-minute threshold
         now = datetime.utcnow()
         retry_threshold = now - timedelta(minutes=30)
 
-        # Query for cancelled jobs older than 30 minutes
+        # Query for failed OR cancelled jobs older than 30 minutes
         cancelled_jobs = db.query(ScrapingJob).filter(
-            ScrapingJob.status == 'cancelled',
+            ScrapingJob.status.in_(['cancelled', 'failed']),
             ScrapingJob.completed_at < retry_threshold
         ).all()
 
-        logger.info(f"[Retry Scheduler] Found {len(cancelled_jobs)} cancelled jobs older than 30 minutes")
+        logger.info(f"[Retry Scheduler] Found {len(cancelled_jobs)} failed/cancelled jobs older than 30 minutes")
 
         retry_count = 0
         skip_count = 0
