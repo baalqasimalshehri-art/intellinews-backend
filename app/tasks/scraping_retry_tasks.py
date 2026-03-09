@@ -43,9 +43,15 @@ def retry_cancelled_scraping_jobs():
 
         retry_count = 0
         skip_count = 0
+        processed_users = set()  # Only retry once per user per cycle
 
         for job in cancelled_jobs:
             try:
+                # Only process each user once per cycle (they may have multiple cancelled jobs)
+                if job.user_id in processed_users:
+                    continue
+                processed_users.add(job.user_id)
+
                 # Get user
                 user = db.query(User).filter(User.id == job.user_id).first()
 
@@ -68,6 +74,19 @@ def retry_cancelled_scraping_jobs():
 
                 if existing_job:
                     logger.info(f"[Retry Scheduler] User {user.email} already has active job {existing_job.id}, skipping")
+                    skip_count += 1
+                    continue
+
+                # Skip if user already had a successful scrape within 6 hours (respect 6-hour cadence)
+                six_hours_ago = now - timedelta(hours=6)
+                recent_completed = db.query(ScrapingJob).filter(
+                    ScrapingJob.user_id == user.id,
+                    ScrapingJob.status == 'completed',
+                    ScrapingJob.completed_at >= six_hours_ago
+                ).first()
+
+                if recent_completed:
+                    logger.info(f"[Retry Scheduler] User {user.email} completed scraping within 6h, skipping retry")
                     skip_count += 1
                     continue
 
