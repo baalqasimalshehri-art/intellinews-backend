@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.newsletter import NewsletterLog
 from app.models.notification import Notification
 from app.models.scraping_job import ScrapingJob
+from app.models.sent_article import SentArticle
 from app.services.ranking import ranking_service
 from app.services.email_service import email_service
 from app.services.user_scraper import user_scraper_service
@@ -236,7 +237,8 @@ def generate_and_send_newsletters():
                     user_topics=topics,
                     user_keywords=keywords,
                     source_type=source_type,
-                    limit=10  # Top 10 articles
+                    limit=10,  # Top 10 articles
+                    exclude_sent=True  # Never resend an article
                 )
 
                 # Skip if no articles found
@@ -256,6 +258,15 @@ def generate_and_send_newsletters():
                 if success:
                     sent_count += 1
                     print(f"✓ Newsletter sent to {user.email}")
+
+                    # Record every delivered article so it won't be sent again
+                    for article_dict in ranked_articles:
+                        sa = SentArticle(
+                            article_id=article_dict["id"],
+                            user_id=user.id
+                        )
+                        db.merge(sa)
+                    db.commit()
 
                     # Create notification for successful newsletter delivery
                     try:
@@ -348,7 +359,8 @@ def send_test_newsletter(user_email: str):
             user_topics=topics,
             user_keywords=keywords,
             source_type=source_type,
-            limit=5  # Top 5 for testing
+            limit=5,  # Top 5 for testing
+            exclude_sent=True  # Never resend an article
         )
 
         if not ranked_articles:
@@ -365,6 +377,14 @@ def send_test_newsletter(user_email: str):
 
         if success:
             print(f"✓ Test newsletter sent to {user_email}")
+            # Record every delivered article so it won't be sent again
+            for article_dict in ranked_articles:
+                sa = SentArticle(
+                    article_id=article_dict["id"],
+                    user_id=user.id
+                )
+                db.merge(sa)
+            db.commit()
         else:
             print(f"✗ Failed to send test newsletter")
 

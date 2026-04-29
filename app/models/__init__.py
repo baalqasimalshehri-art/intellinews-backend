@@ -7,5 +7,6 @@ from app.models.settings import SystemSettings
 from app.models.rss_feed import RSSFeed
 from app.models.notification import Notification
 from app.models.scraping_job import ScrapingJob
+from app.models.sent_article import SentArticle
 
-__all__ = ["Article", "User", "Ranking", "PasswordResetToken", "NewsletterLog", "SystemSettings", "RSSFeed", "Notification", "ScrapingJob"]
+__all__ = ["Article", "User", "Ranking", "PasswordResetToken", "NewsletterLog", "SystemSettings", "RSSFeed", "Notification", "ScrapingJob", "SentArticle"]

@@ -19,7 +19,8 @@ class RetrievalService:
         query_embedding: List[float],
         source_type: Optional[str] = None,
         limit: int = 50,
-        min_date: Optional[datetime] = None
+        min_date: Optional[datetime] = None,
+        excluded_article_ids: Optional[List[int]] = None
     ) -> List[Tuple[Article, float]]:
         """
         Perform semantic search using vector similarity
@@ -30,6 +31,7 @@ class RetrievalService:
             source_type: Filter by source type ("academic", "industry", "financial")
             limit: Maximum number of results
             min_date: Minimum publication date
+            excluded_article_ids: Article IDs to exclude (already sent to user)
 
         Returns:
             List of (Article, distance) tuples sorted by similarity
@@ -44,6 +46,10 @@ class RetrievalService:
         # Apply date filter
         if min_date:
             query = query.filter(Article.published_date >= min_date)
+
+        # Exclude already-sent articles
+        if excluded_article_ids:
+            query = query.filter(Article.id.notin_(excluded_article_ids))
 
         # Order by vector similarity (cosine distance)
         query = query.order_by(Article.embedding.cosine_distance(query_embedding))
@@ -67,7 +73,8 @@ class RetrievalService:
         user_topics: List[str],
         user_keywords: List[str],
         source_type: Optional[str] = None,
-        limit: int = 50
+        limit: int = 100,
+        excluded_article_ids: Optional[List[int]] = None
     ) -> List[Tuple[Article, float]]:
         """
         Search articles based on user preferences
@@ -78,6 +85,7 @@ class RetrievalService:
             user_keywords: User's preferred keywords
             source_type: Filter by source type
             limit: Maximum number of results
+            excluded_article_ids: Article IDs to exclude (already sent to user)
 
         Returns:
             List of (Article, similarity_score) tuples
@@ -94,7 +102,8 @@ class RetrievalService:
             query_embedding=query_embedding,
             source_type=source_type,
             limit=limit,
-            min_date=min_date
+            min_date=min_date,
+            excluded_article_ids=excluded_article_ids
         )
 
     def hybrid_ranking(
