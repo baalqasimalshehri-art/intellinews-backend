@@ -4,6 +4,7 @@ from sqlalchemy import and_
 from datetime import datetime, timedelta
 from app.models.article import Article
 from app.models.ranking import Ranking
+from app.models.sent_article import SentArticle
 from app.services.retrieval import retrieval_service
 from app.services.openai_service import openai_service
 
@@ -25,7 +26,8 @@ class RankingService:
         user_keywords: List[str],
         source_type: str = "both",
         limit: int = 20,
-        offset: int = 0
+        offset: int = 0,
+        exclude_sent: bool = False
     ) -> List[Dict]:
         """
         Rank articles for a specific user with AI-generated reasoning and intelligent caching
@@ -64,15 +66,26 @@ class RankingService:
         # No sufficient cache, run RAG retrieval
         print(f"[RankingService] Running RAG retrieval for new articles")
 
+        # Fetch IDs of articles already delivered to this user (newsletter path only)
+        sent_ids = []
+        if exclude_sent:
+            sent_ids = [
+                r.article_id
+                for r in db.query(SentArticle.article_id)
+                .filter(SentArticle.user_id == user_id)
+                .all()
+            ]
+
         # Step 1: Retrieve relevant articles using RAG
-        # Fetch more articles to account for offset
-        total_to_fetch = (offset + limit) * 2
+        # Wider candidate pool for more variety (minimum 60)
+        total_to_fetch = max((offset + limit) * 4, 60)
         articles_with_scores = self.retrieval_service.search_by_user_preferences(
             db=db,
             user_topics=user_topics,
             user_keywords=user_keywords,
             source_type=source_type,
-            limit=total_to_fetch  # Get more for better filtering and offset
+            limit=total_to_fetch,
+            excluded_article_ids=sent_ids if sent_ids else None
         )
 
         # Step 2: Apply hybrid ranking (semantic + recency)

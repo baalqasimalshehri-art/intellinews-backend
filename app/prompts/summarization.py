@@ -94,14 +94,15 @@ User Preferences:
 - Topics: {topics}
 - Keywords: {keywords}
 
-Relevance Score: {relevance_score} (semantic similarity to user preferences)
-Freshness Score: {freshness_score} (how recent the article is)
+Relevance Score: {relevance_score}
+Freshness Score: {freshness_score}
 Final Score: {final_score}
 
-Generate a brief, clear explanation (1-2 sentences) of why this article was selected for this user.
-Focus on matching topics/keywords and timeliness.
+Generate a brief explanation (1-2 sentences) that:
+1. Names the specific topic or keyword from the user's preferences that this article matches
+2. Mentions how recently it was published
 
-Example: "Selected for high relevance (0.92) to your interest in transformers and NLP. Published 3 days ago, ensuring freshness."
+Example: "Matched your interest in Financial Markets — covers BOJ policy and market volatility. Published 3 days ago."
 """
 
 

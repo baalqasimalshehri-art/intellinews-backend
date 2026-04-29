@@ -44,7 +44,7 @@ def init_db():
     # Import all models to ensure they're registered
     from app.models import (
         Article, User, Ranking, PasswordResetToken, NewsletterLog,
-        SystemSettings, RSSFeed, Notification, ScrapingJob
+        SystemSettings, RSSFeed, Notification, ScrapingJob, SentArticle
     )
 
     # Create all tables

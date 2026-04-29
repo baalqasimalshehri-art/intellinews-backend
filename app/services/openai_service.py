@@ -161,7 +161,8 @@ class OpenAIService:
             return response.choices[0].message.content.strip()
         except Exception as e:
             print(f"[OpenAI] Error generating reasoning: {e}")
-            return f"Matched {int(relevance_score * 100)}% to your interests. Recent content from {published_date}."
+            topic_hint = user_topics[0] if user_topics else (user_keywords[0] if user_keywords else "your interests")
+            return f"Matched your interest in {topic_hint} ({int(relevance_score * 100)}% relevance). Published {published_date}."
 
     def generate_user_preference_embedding(
         self,
