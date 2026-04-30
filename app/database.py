@@ -57,3 +57,18 @@ def init_db():
             ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL
         """))
         conn.commit()
+
+    # Migration: clear articles whose summary was saved as an API error string.
+    # These were generated before the gpt-4-turbo-preview → gpt-4o-mini model fix and
+    # will now be re-summarised the next time the article is processed.
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            UPDATE articles
+            SET summary    = '',
+                key_points = '[]'::jsonb,
+                tags       = '[]'::jsonb
+            WHERE summary LIKE 'Error generating summary:%'
+        """))
+        conn.commit()
+        if result.rowcount:
+            print(f"[DB Migration] Cleared {result.rowcount} articles with error summaries — they will be re-summarised on next scrape")

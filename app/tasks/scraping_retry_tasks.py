@@ -130,30 +130,44 @@ def retry_cancelled_scraping_jobs():
 
 def cleanup_stuck_pending_jobs():
     """
-    Find pending jobs older than 30 minutes and mark them as failed.
-    This prevents jobs from being stuck in pending forever.
+    Find pending jobs older than 90 minutes and mark them as failed.
+    Also marks jobs that have been stuck in 'running' for more than 2 hours.
+    This prevents jobs from being stuck forever while still giving them
+    enough time to complete on Railway (which may delay thread startup).
     """
     db: Session = SessionLocal()
     try:
-        logger.info("[Retry Scheduler] Checking for stuck pending jobs...")
+        logger.info("[Retry Scheduler] Checking for stuck pending/running jobs...")
 
         # Get current time
         now = datetime.utcnow()
-        timeout_threshold = now - timedelta(minutes=30)
 
-        # Find pending jobs older than 30 minutes
-        stuck_jobs = db.query(ScrapingJob).filter(
+        # Pending timeout: 90 minutes (Railway container restarts can delay thread startup)
+        pending_timeout_threshold = now - timedelta(minutes=90)
+
+        # Running timeout: 2 hours (scraping should never take longer than this)
+        running_timeout_threshold = now - timedelta(hours=2)
+
+        # Find pending jobs older than 90 minutes
+        stuck_pending = db.query(ScrapingJob).filter(
             ScrapingJob.status == 'pending',
-            ScrapingJob.created_at < timeout_threshold
+            ScrapingJob.created_at < pending_timeout_threshold
         ).all()
 
-        logger.info(f"[Retry Scheduler] Found {len(stuck_jobs)} stuck pending jobs")
+        # Find running jobs stuck for more than 2 hours
+        stuck_running = db.query(ScrapingJob).filter(
+            ScrapingJob.status == 'running',
+            ScrapingJob.started_at < running_timeout_threshold
+        ).all()
+
+        stuck_jobs = stuck_pending + stuck_running
+        logger.info(f"[Retry Scheduler] Found {len(stuck_pending)} stuck pending + {len(stuck_running)} stuck running jobs")
 
         for job in stuck_jobs:
             try:
                 # Mark as failed
                 job.status = 'failed'
-                job.error_message = 'Job timed out in pending status (>30 minutes)'
+                job.error_message = 'Job timed out (>90 min pending or >2 hr running)'
                 job.completed_at = now
                 job.current_step = 'timeout'
                 job.message = 'Job timed out and was automatically cancelled'

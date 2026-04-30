@@ -49,7 +49,7 @@ def scrape_and_process_articles():
         if industry_feeds_db:
             industry_feed_urls = [feed.url for feed in industry_feeds_db]
             print(f"[Scheduler] Scraping {len(industry_feed_urls)} industry feeds from database")
-            industry_articles = rss_scraper.scrape_multiple_feeds(industry_feed_urls, source_type="industry", limit=10)
+            industry_articles = rss_scraper.scrape_multiple_feeds(industry_feed_urls, source_type="industry", limit=30)
             all_articles.extend(industry_articles)
             print(f"Found {len(industry_articles)} articles from industry sources")
         else:
@@ -60,7 +60,7 @@ def scrape_and_process_articles():
         if financial_feeds_db:
             financial_feed_urls = [feed.url for feed in financial_feeds_db]
             print(f"[Scheduler] Scraping {len(financial_feed_urls)} financial feeds from database")
-            news_articles = rss_scraper.scrape_multiple_feeds(financial_feed_urls, source_type="financial", limit=10)
+            news_articles = rss_scraper.scrape_multiple_feeds(financial_feed_urls, source_type="financial", limit=30)
             all_articles.extend(news_articles)
             print(f"Found {len(news_articles)} articles from financial sources")
         else:
@@ -73,7 +73,7 @@ def scrape_and_process_articles():
             custom_feeds = custom_sources_setting.value
             if isinstance(custom_feeds, list) and len(custom_feeds) > 0:
                 print(f"Scraping {len(custom_feeds)} custom RSS feeds...")
-                custom_articles = rss_scraper.scrape_multiple_feeds(custom_feeds, source_type="industry", limit=10)
+                custom_articles = rss_scraper.scrape_multiple_feeds(custom_feeds, source_type="industry", limit=30)
                 all_articles.extend(custom_articles)
                 print(f"Found {len(custom_articles)} articles from custom feeds")
 

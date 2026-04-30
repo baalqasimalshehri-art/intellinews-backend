@@ -61,7 +61,7 @@ class UserScraperService:
         self,
         db: Session,
         user_id: int,
-        max_articles_per_source: int = 10
+        max_articles_per_source: int = 30
     ) -> Dict[str, any]:
         """
         Scrape articles based on a specific user's preferences
@@ -139,7 +139,7 @@ class UserScraperService:
         db: Session,
         user_id: int,
         job_id: int,
-        max_articles_per_source: int = 10
+        max_articles_per_source: int = 30
     ) -> Dict[str, any]:
         """
         Scrape articles with detailed progress tracking using ScrapingJob
