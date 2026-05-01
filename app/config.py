@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     EMBEDDING_DIMENSION: int = 1536
 
     # GPT
-    GPT_MODEL: str = "gpt-4o-mini"
+    GPT_MODEL: str = "gpt-5.4-mini"
     MAX_TOKENS: int = 1000
 
     class Config:
