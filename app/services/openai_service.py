@@ -8,6 +8,9 @@ from app.prompts.summarization import get_prompt_by_source_type, RANKING_REASONI
 class OpenAIService:
     """Service for interacting with OpenAI API (GPT-4 and embeddings)"""
 
+    # Fallback model used when the configured model returns a 404
+    FALLBACK_MODEL = "gpt-4o-mini"
+
     def __init__(self):
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
         self.embedding_model = settings.EMBEDDING_MODEL
@@ -76,34 +79,34 @@ class OpenAIService:
 
         prompt = prompt_template.format(content=content)
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.gpt_model,
-                messages=[
-                    {"role": "system", "content": "You are an AI assistant that summarizes content accurately and concisely."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=settings.MAX_TOKENS,
-                temperature=0.3,  # Lower temperature for more consistent summaries
-                response_format={"type": "json_object"},
-                timeout=timeout  # Add timeout protection
-            )
-
-            result = json.loads(response.choices[0].message.content)
-
-            return {
-                "summary": result.get("summary", ""),
-                "key_points": result.get("keyPoints", []),
-                "tags": result.get("tags", [])
-            }
-        except Exception as e:
-            print(f"[OpenAI] Error summarizing article (timeout={timeout}s): {e}")
-            # Return a fallback summary
-            return {
-                "summary": f"Error generating summary: {str(e)}",
-                "key_points": [],
-                "tags": []
-            }
+        for model in [self.gpt_model, self.FALLBACK_MODEL]:
+            try:
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "You are an AI assistant that summarizes content accurately and concisely."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=settings.MAX_TOKENS,
+                    temperature=0.3,
+                    response_format={"type": "json_object"},
+                    timeout=timeout
+                )
+                if model != self.gpt_model:
+                    print(f"[OpenAI] Used fallback model {model} for summarization")
+                result = json.loads(response.choices[0].message.content)
+                return {
+                    "summary": result.get("summary", ""),
+                    "key_points": result.get("keyPoints", []),
+                    "tags": result.get("tags", [])
+                }
+            except Exception as e:
+                print(f"[OpenAI] Error summarizing article with model={model}: {e}")
+                if model == self.FALLBACK_MODEL:
+                    # Both models failed — return empty so content excerpt shows instead
+                    return {"summary": "", "key_points": [], "tags": []}
+                # Try fallback model next iteration
+                continue
 
     def generate_ranking_reasoning(
         self,
@@ -146,23 +149,27 @@ class OpenAIService:
             final_score=f"{final_score:.2f}"
         )
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.gpt_model,
-                messages=[
-                    {"role": "system", "content": "You are an AI assistant explaining content recommendations."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=100,
-                temperature=0.5,
-                timeout=30  # Add timeout protection
-            )
-
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"[OpenAI] Error generating reasoning: {e}")
-            topic_hint = user_topics[0] if user_topics else (user_keywords[0] if user_keywords else "your interests")
-            return f"Matched your interest in {topic_hint} ({int(relevance_score * 100)}% relevance). Published {published_date}."
+        for model in [self.gpt_model, self.FALLBACK_MODEL]:
+            try:
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "You are an AI assistant explaining content recommendations."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=100,
+                    temperature=0.5,
+                    timeout=30
+                )
+                if model != self.gpt_model:
+                    print(f"[OpenAI] Used fallback model {model} for ranking reasoning")
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"[OpenAI] Error generating reasoning with model={model}: {e}")
+                if model == self.FALLBACK_MODEL:
+                    topic_hint = user_topics[0] if user_topics else (user_keywords[0] if user_keywords else "your interests")
+                    return f"Matched your interest in {topic_hint} ({int(relevance_score * 100)}% relevance). Published {published_date}."
+                continue
 
     def generate_user_preference_embedding(
         self,
