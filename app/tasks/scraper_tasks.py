@@ -146,6 +146,69 @@ def scrape_and_process_articles():
         db.close()
 
 
+def resummarize_empty_articles(batch_size: int = 50):
+    """
+    Find articles with empty summaries and regenerate them using the current GPT model.
+
+    This runs:
+    - Once at application startup (in a background thread)
+    - Daily at 01:00 UTC via the scheduler
+
+    Articles whose summary was cleared by the error-migration (or never generated)
+    will be processed here so newsletters always have proper summaries.
+    """
+    print("[Resummarize] Starting re-summarization of articles with empty summaries...")
+    db = SessionLocal()
+    fixed = 0
+    failed = 0
+
+    try:
+        # Find articles with blank summary (empty string or None)
+        empty_articles = (
+            db.query(Article)
+            .filter(
+                (Article.summary == None) | (Article.summary == "")
+            )
+            .limit(batch_size)
+            .all()
+        )
+
+        print(f"[Resummarize] Found {len(empty_articles)} articles needing re-summarization")
+
+        for article in empty_articles:
+            try:
+                summary_data = openai_service.summarize_article(
+                    content=article.content,
+                    source_type=article.source_type,
+                    title=article.title,
+                    timeout=60
+                )
+
+                # Only save if we got a real summary (not another error string)
+                if summary_data.get("summary") and not summary_data["summary"].startswith("Error"):
+                    article.summary = summary_data["summary"]
+                    article.key_points = summary_data.get("key_points", [])
+                    article.tags = summary_data.get("tags", [])
+                    db.commit()
+                    fixed += 1
+                    print(f"[Resummarize] ✓ Re-summarised: {article.title[:60]}")
+                else:
+                    failed += 1
+
+            except Exception as e:
+                print(f"[Resummarize] ✗ Failed for article {article.id}: {e}")
+                failed += 1
+                db.rollback()
+                continue
+
+        print(f"[Resummarize] Done — {fixed} fixed, {failed} failed")
+
+    except Exception as e:
+        print(f"[Resummarize] Error: {e}")
+    finally:
+        db.close()
+
+
 def start_scheduler():
     """
     Start background scheduler for automated scraping
@@ -162,6 +225,15 @@ def start_scheduler():
         hour=0,
         minute=0,
         id='daily_scraping'
+    )
+
+    # Re-summarise any articles that still have empty summaries (runs daily at 01:00)
+    scheduler.add_job(
+        resummarize_empty_articles,
+        'cron',
+        hour=1,
+        minute=0,
+        id='daily_resummarize'
     )
 
     scheduler.start()

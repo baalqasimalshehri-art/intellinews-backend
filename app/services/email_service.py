@@ -283,7 +283,7 @@ class EmailService:
                 </h2>
 
                 <div class="article-summary">
-                    {article.get('summary', 'No summary available')}
+                    {article.get('summary') or (article.get('content', '')[:400].strip() + '…') or 'Summary not yet available.'}
                 </div>
 """
 

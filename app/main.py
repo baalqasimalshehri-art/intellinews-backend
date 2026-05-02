@@ -1,3 +1,4 @@
+import threading
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -52,6 +53,12 @@ async def startup_event():
     # Initialize default RSS feeds
     print("\nInitializing default RSS feeds...")
     create_default_feeds()
+
+    # Re-summarise articles that have empty summaries (runs in background, non-blocking)
+    from app.tasks.scraper_tasks import resummarize_empty_articles
+    thread = threading.Thread(target=resummarize_empty_articles, daemon=True)
+    thread.start()
+    print("\nStarted background re-summarization of articles with empty summaries.")
 
 
 @app.get("/")
