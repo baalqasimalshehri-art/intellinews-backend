@@ -146,7 +146,7 @@ def scrape_and_process_articles():
         db.close()
 
 
-def resummarize_empty_articles(batch_size: int = 50):
+def resummarize_empty_articles(batch_size: int = 200):
     """
     Find articles with empty summaries and regenerate them using the current GPT model.
 
@@ -157,13 +157,24 @@ def resummarize_empty_articles(batch_size: int = 50):
     Articles whose summary was cleared by the error-migration (or never generated)
     will be processed here so newsletters always have proper summaries.
     """
-    print("[Resummarize] Starting re-summarization of articles with empty summaries...")
+    print("=" * 60)
+    print("[Resummarize] Starting re-summarization task...")
+    print("=" * 60)
     db = SessionLocal()
     fixed = 0
     failed = 0
 
     try:
-        # Find articles with blank summary (empty string or None)
+        # Count total articles with empty summaries (for progress reporting)
+        total_empty = (
+            db.query(Article)
+            .filter(
+                (Article.summary == None) | (Article.summary == "")
+            )
+            .count()
+        )
+
+        # Fetch the batch to process
         empty_articles = (
             db.query(Article)
             .filter(
@@ -173,10 +184,14 @@ def resummarize_empty_articles(batch_size: int = 50):
             .all()
         )
 
-        print(f"[Resummarize] Found {len(empty_articles)} articles needing re-summarization")
+        print(f"[Resummarize] Total articles with empty summary in DB: {total_empty}")
+        print(f"[Resummarize] Processing batch of {len(empty_articles)} articles now...")
+        print("-" * 60)
 
-        for article in empty_articles:
+        for idx, article in enumerate(empty_articles, 1):
             try:
+                print(f"[Resummarize] [{idx}/{len(empty_articles)}] Summarising: \"{article.title[:70]}\"")
+
                 summary_data = openai_service.summarize_article(
                     content=article.content,
                     source_type=article.source_type,
@@ -184,27 +199,45 @@ def resummarize_empty_articles(batch_size: int = 50):
                     timeout=60
                 )
 
+                generated_summary = summary_data.get("summary", "")
+                key_points = summary_data.get("key_points", [])
+                tags = summary_data.get("tags", [])
+
                 # Only save if we got a real summary (not another error string)
-                if summary_data.get("summary") and not summary_data["summary"].startswith("Error"):
-                    article.summary = summary_data["summary"]
-                    article.key_points = summary_data.get("key_points", [])
-                    article.tags = summary_data.get("tags", [])
+                if generated_summary and not generated_summary.startswith("Error"):
+                    article.summary = generated_summary
+                    article.key_points = key_points
+                    article.tags = tags
                     db.commit()
                     fixed += 1
-                    print(f"[Resummarize] ✓ Re-summarised: {article.title[:60]}")
+
+                    # Log the full generated summary so it's visible in Railway logs
+                    print(f"[Resummarize] ✓ Summary generated for article {article.id}:")
+                    print(f"             TITLE   : {article.title[:80]}")
+                    print(f"             SUMMARY : {generated_summary}")
+                    print(f"             TAGS    : {', '.join(tags[:5])}")
+                    print(f"             POINTS  : {len(key_points)} key points")
+                    print("-" * 60)
                 else:
                     failed += 1
+                    print(f"[Resummarize] ✗ Empty/error summary returned for article {article.id} — skipping")
+                    print("-" * 60)
 
             except Exception as e:
-                print(f"[Resummarize] ✗ Failed for article {article.id}: {e}")
+                print(f"[Resummarize] ✗ Exception for article {article.id} ({article.title[:50]}): {e}")
                 failed += 1
                 db.rollback()
                 continue
 
-        print(f"[Resummarize] Done — {fixed} fixed, {failed} failed")
+        remaining = total_empty - fixed
+        print("=" * 60)
+        print(f"[Resummarize] DONE — {fixed} fixed, {failed} failed, {max(0, remaining)} still remaining in DB")
+        if remaining > 0:
+            print(f"[Resummarize] Remaining articles will be processed in the next daily run at 01:00 UTC")
+        print("=" * 60)
 
     except Exception as e:
-        print(f"[Resummarize] Error: {e}")
+        print(f"[Resummarize] Fatal error: {e}")
     finally:
         db.close()
 
