@@ -26,36 +26,44 @@ class ArxivScraper:
         articles = []
 
         for topic in topics:
-            # Build arXiv query
-            search = arxiv.Search(
-                query=topic,
-                max_results=self.max_results,
-                sort_by=arxiv.SortCriterion.SubmittedDate,
-                sort_order=arxiv.SortOrder.Descending
-            )
+            try:
+                # Build arXiv query
+                search = arxiv.Search(
+                    query=topic,
+                    max_results=self.max_results,
+                    sort_by=arxiv.SortCriterion.SubmittedDate,
+                    sort_order=arxiv.SortOrder.Descending
+                )
 
-            for result in search.results():
-                # Filter by date (only 2025+)
-                published = result.published.replace(tzinfo=None)
-                if published < self.min_date:
-                    continue
+                for result in search.results():
+                    # Filter by date (only 2025+)
+                    published = result.published.replace(tzinfo=None)
+                    if published < self.min_date:
+                        continue
 
-                article = {
-                    "title": result.title,
-                    "content": result.summary,
-                    "url": result.entry_id,
-                    "source": "arXiv",
-                    "source_type": "academic",
-                    "published_date": published,
-                    "metadata": {
-                        "authors": [author.name for author in result.authors],
-                        "categories": result.categories,
-                        "primary_category": result.primary_category,
-                        "pdf_url": result.pdf_url
+                    article = {
+                        "title": result.title,
+                        "content": result.summary,
+                        "url": result.entry_id,
+                        "source": "arXiv",
+                        "source_type": "academic",
+                        "published_date": published,
+                        "metadata": {
+                            "authors": [author.name for author in result.authors],
+                            "categories": result.categories,
+                            "primary_category": result.primary_category,
+                            "pdf_url": result.pdf_url
+                        }
                     }
-                }
 
-                articles.append(article)
+                    articles.append(article)
+
+                # Rate limiting between topic requests
+                time.sleep(3)
+
+            except Exception as e:
+                print(f"[ArxivScraper] Error scraping topic '{topic}': {e}")
+                continue
 
         return articles
 
