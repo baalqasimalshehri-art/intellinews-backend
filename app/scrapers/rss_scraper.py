@@ -21,10 +21,11 @@ class RSSFeedScraper:
         self.min_date = settings.min_article_datetime
         # Create session with timeout and retry logic
         self.session = requests.Session()
+        # 429 (rate-limited) is excluded — retrying rate-limited feeds only makes it worse
         retry_strategy = Retry(
-            total=3,
+            total=2,
             backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504]
+            status_forcelist=[500, 502, 503, 504]
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         self.session.mount("http://", adapter)
@@ -44,7 +45,10 @@ class RSSFeedScraper:
         """
         try:
             # Fetch with timeout
-            response = self.session.get(feed_url, timeout=15)
+            response = self.session.get(feed_url, timeout=20)
+            if response.status_code == 429:
+                print(f"[RSS] Rate-limited (429) for {feed_url}, skipping")
+                return []
             feed = feedparser.parse(response.content)
             articles = []
 
@@ -89,7 +93,7 @@ class RSSFeedScraper:
             return articles
 
         except requests.Timeout:
-            print(f"[RSS] Timeout fetching {feed_url} (15s limit)")
+            print(f"[RSS] Timeout fetching {feed_url} (20s limit)")
             return []
         except requests.RequestException as e:
             print(f"[RSS] Request error for {feed_url}: {e}")

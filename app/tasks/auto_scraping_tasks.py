@@ -83,8 +83,8 @@ def auto_scrape_for_all_users():
                     user_id=user.id,
                     title="🔄 Auto-Scraping Started",
                     message=f"Finding fresh articles based on your interests: {', '.join(user.preferences.get('topics', [])[:3])}...",
-                    type="info",
-                    is_read=False,
+                    notification_type="info",
+                    read=False,
                     created_at=now
                 )
                 db.add(notification)
@@ -149,8 +149,8 @@ def _run_scraping_in_background(job_id: int):
                     user_id=user.id,
                     title="✅ Auto-Scraping Complete",
                     message=f"Found {job.articles_saved} new articles! Check your Dashboard to explore.",
-                    type="success",
-                    is_read=False,
+                    notification_type="success",
+                    read=False,
                     created_at=datetime.utcnow()
                 )
                 db_task.add(notification)
@@ -174,8 +174,8 @@ def _run_scraping_in_background(job_id: int):
                         user_id=job.user_id,
                         title="❌ Auto-Scraping Failed",
                         message="Something went wrong during automatic scraping. Please try manual scraping.",
-                        type="error",
-                        is_read=False,
+                        notification_type="error",
+                        read=False,
                         created_at=datetime.utcnow()
                     )
                     db_task.add(notification)
