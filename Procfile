@@ -1,1 +1,1 @@
-web: uvicorn app.main:app --host 0.0.0.0 --port $PORT & python start_scheduler.py & wait
+web: python start_scheduler.py & exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
