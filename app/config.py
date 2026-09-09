@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # Email (Resend API)
     RESEND_API_KEY: str = ""
-    FROM_EMAIL: str = "IntelliNews <newsletter@alshehri050.shop>"
+    FROM_EMAIL: str = "IntelliNews <newsletter@intellinewsai.shop>"
 
     # Authentication
     SECRET_KEY: str = "your-secret-key-change-in-production-please-use-a-strong-random-key"
