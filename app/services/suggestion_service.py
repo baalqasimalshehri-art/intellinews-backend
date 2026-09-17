@@ -271,7 +271,10 @@ def get_suggested_keywords(
         f"- More specific than the topics themselves (techniques, technologies, "
         f"metrics, events, named concepts)\n"
         f"- 1-3 words each, Title Case, no hashtags\n"
-        f"- Prefer terms that appear in the data above when it is provided\n"
+        f"- Use established terms a reader would recognise and search for. Draw "
+        f"on the data above for what is currently active, but do not copy "
+        f"phrasing unique to a single article or paper title\n"
+        f"- Each must be broad enough to match future articles, not one story\n"
         f"- Do not simply repeat the topic names\n"
         f'Respond as JSON: {{"keywords": ["...", "..."]}}'
     )
