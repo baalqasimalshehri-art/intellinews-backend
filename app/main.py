@@ -2,7 +2,7 @@ import threading
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from app.api import articles, users, auth, scraping, admin, notifications
+from app.api import articles, users, auth, scraping, admin, notifications, suggestions
 from app.database import init_db
 from app.config import settings
 from app.utils.cache import get_cache_stats
@@ -37,6 +37,7 @@ app.include_router(users.router)
 app.include_router(scraping.router)
 app.include_router(admin.router)
 app.include_router(notifications.router)
+app.include_router(suggestions.router)
 
 
 @app.on_event("startup")
