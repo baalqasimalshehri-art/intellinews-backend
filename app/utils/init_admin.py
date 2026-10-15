@@ -1,5 +1,13 @@
 """
-Initialize default admin user on startup
+Initialize the administrator account on startup.
+
+Credentials are read from the environment, never from source code:
+  ADMIN_EMAIL     (default: admin@intellinews.com)
+  ADMIN_PASSWORD  (required to create the account or to reset its password)
+
+If ADMIN_PASSWORD is set and the stored password differs, the stored
+password is replaced, so the administrator password can be rotated from
+the hosting settings without signing in.
 """
 
 from sqlalchemy import text
@@ -9,67 +17,54 @@ from app.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Default admin credentials
-DEFAULT_ADMIN_EMAIL = "admin@intellinews.com"
-DEFAULT_ADMIN_PASSWORD = "Admin123!"
-
 
 def create_default_admin():
-    """
-    Create default admin user if it doesn't exist.
+    """Create or update the administrator account from environment settings."""
+    admin_email = settings.ADMIN_EMAIL
+    admin_password = settings.ADMIN_PASSWORD
 
-    Credentials:
-    Email: admin@intellinews.com
-    Password: Admin123!
-    """
     try:
         with engine.connect() as conn:
-            # Check if admin user already exists
             result = conn.execute(
-                text("SELECT id, email, role FROM users WHERE email = :email"),
-                {"email": DEFAULT_ADMIN_EMAIL}
+                text("SELECT id, email, role, hashed_password FROM users WHERE email = :email"),
+                {"email": admin_email}
             )
             existing_admin = result.first()
 
             if existing_admin:
-                # Admin exists, ensure role is set to admin
                 if existing_admin[2] != 'admin':
                     conn.execute(
                         text("UPDATE users SET role = 'admin' WHERE email = :email"),
-                        {"email": DEFAULT_ADMIN_EMAIL}
+                        {"email": admin_email}
                     )
-                    conn.commit()
-                    print(f"✅ Updated existing user '{DEFAULT_ADMIN_EMAIL}' to admin role")
-                else:
-                    print(f"✅ Default admin user already exists: {DEFAULT_ADMIN_EMAIL}")
+                    print(f"[Admin] Updated '{admin_email}' to admin role")
+
+                if admin_password and not pwd_context.verify(admin_password, existing_admin[3] or ""):
+                    conn.execute(
+                        text("UPDATE users SET hashed_password = :password, updated_at = NOW() WHERE email = :email"),
+                        {"email": admin_email, "password": pwd_context.hash(admin_password)}
+                    )
+                    print(f"[Admin] Administrator password updated from ADMIN_PASSWORD for '{admin_email}'")
+
+                conn.commit()
                 return
 
-            # Create new admin user
-            hashed_password = pwd_context.hash(DEFAULT_ADMIN_PASSWORD)
+            if not admin_password:
+                print("[Admin] ADMIN_PASSWORD is not set; no administrator account was created.")
+                return
 
             conn.execute(
                 text("""
                     INSERT INTO users (email, hashed_password, role, is_active, is_verified, preferences, created_at, updated_at)
                     VALUES (:email, :password, 'admin', true, true, '{}', NOW(), NOW())
                 """),
-                {
-                    "email": DEFAULT_ADMIN_EMAIL,
-                    "password": hashed_password
-                }
+                {"email": admin_email, "password": pwd_context.hash(admin_password)}
             )
             conn.commit()
-
-            print("=" * 60)
-            print("✅ DEFAULT ADMIN USER CREATED!")
-            print("=" * 60)
-            print(f"📧 Email:    {DEFAULT_ADMIN_EMAIL}")
-            print(f"🔑 Password: {DEFAULT_ADMIN_PASSWORD}")
-            print("=" * 60)
-            print("⚠️  IMPORTANT: Change this password after first login!")
-            print("=" * 60)
+            print(f"[Admin] Administrator account created for '{admin_email}'")
 
     except Exception as e:
-        print(f"⚠️  Error creating default admin: {e}")
+        print(f"[Admin] Error initializing administrator account: {e}")
 
 
 if __name__ == "__main__":

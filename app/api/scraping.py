@@ -12,6 +12,7 @@ from datetime import datetime
 import threading
 from app.database import get_db, SessionLocal
 from app.utils.auth import get_current_user
+from app.utils.admin import require_admin
 from app.models.user import User
 from app.models.scraping_job import ScrapingJob
 from app.services.user_scraper import user_scraper_service
@@ -208,20 +209,12 @@ async def get_my_scraping_history(
 async def scrape_for_all_users(
     request: ScrapeRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """
-    Admin endpoint: Scrape articles for all active users
-
-    This endpoint scrapes articles for every user with preferences set.
-    Useful for periodic batch processing.
-
-    NOTE: This should be restricted to admin users in production
+    Admin endpoint: Scrape articles for all active users (administrator role required)
     """
-    # In production, add admin check here:
-    # if not current_user.is_admin:
-    #     raise HTTPException(status_code=403, detail="Admin access required")
 
     try:
         result = user_scraper_service.scrape_for_all_active_users(
