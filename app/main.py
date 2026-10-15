@@ -18,14 +18,29 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Configure CORS
+# Configure CORS: only the IntelliNews website, its Vercel deployments,
+# local development servers, and any extra origins set in CORS_ORIGINS.
+allowed_origins = {
+    "https://intellinewsai.shop",
+    "https://www.intellinewsai.shop",
+    "http://localhost:5173",
+    "http://localhost:3000",
+}
+if settings.FRONTEND_URL:
+    allowed_origins.add(settings.FRONTEND_URL.rstrip("/"))
+allowed_origins.update(o.strip().rstrip("/") for o in settings.CORS_ORIGINS.split(",") if o.strip())
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
+    allow_origins=sorted(allowed_origins),
+    allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+if settings.ENVIRONMENT == "production" and settings.SECRET_KEY.startswith("your-secret-key"):
+    print("[Security] WARNING: SECRET_KEY is using the development default. Set SECRET_KEY in the hosting environment.")
 
 # Add GZip compression for responses > 1KB
 app.add_middleware(GZipMiddleware, minimum_size=1000)

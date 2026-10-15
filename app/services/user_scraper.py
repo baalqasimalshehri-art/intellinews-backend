@@ -366,7 +366,7 @@ class UserScraperService:
                     summary=summary_data["summary"],
                     key_points=summary_data["key_points"],
                     tags=summary_data["tags"],
-                    metadata=article_data.get("metadata", {})
+                    article_metadata=article_data.get("metadata", {})
                 )
 
                 db.add(article)
@@ -619,7 +619,7 @@ class UserScraperService:
                     summary=summary_data["summary"],
                     key_points=summary_data["key_points"],
                     tags=summary_data["tags"],
-                    metadata=article_data.get("metadata", {})
+                    article_metadata=article_data.get("metadata", {})
                 )
 
                 db.add(article)

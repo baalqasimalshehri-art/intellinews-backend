@@ -192,12 +192,14 @@ async def forgot_password(
     # Find user by email
     user = db.query(User).filter(User.email == request.email).first()
 
-    # Check if user exists - return error if not found
+    # Return the same response whether or not the address is registered,
+    # so the endpoint cannot be used to discover which emails have accounts.
+    generic_response = {
+        "success": True,
+        "message": "If an account exists for this email, a password reset link has been sent. Please check your inbox."
+    }
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No account found with this email address"
-        )
+        return generic_response
 
     try:
         # Generate secure reset token
@@ -229,10 +231,7 @@ async def forgot_password(
                 detail="Failed to send password reset email. Please try again later."
             )
 
-        return {
-            "success": True,
-            "message": "Password reset link has been sent to your email. Please check your inbox."
-        }
+        return generic_response
 
     except HTTPException:
         raise

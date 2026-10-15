@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     # Authentication
     SECRET_KEY: str = "your-secret-key-change-in-production-please-use-a-strong-random-key"
 
+    # Administrator account (set in the hosting environment, never in code)
+    ADMIN_EMAIL: str = "admin@intellinews.com"
+    ADMIN_PASSWORD: str = ""
+
+    # Extra allowed CORS origins, comma-separated (the website domains are always allowed)
+    CORS_ORIGINS: str = ""
+
     # Application
     DEBUG: bool = False
     ENVIRONMENT: str = "production"

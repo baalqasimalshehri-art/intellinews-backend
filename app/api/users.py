@@ -10,9 +10,16 @@ from app.models.notification import Notification
 from app.services.openai_service import openai_service
 from app.services.user_scraper import user_scraper_service
 from app.utils.auth import get_current_user
+from app.utils.admin import require_admin
 from passlib.context import CryptContext
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+
+
+def _ensure_self_or_admin(current_user: User, user_id: int) -> None:
+    """Allow access only to the signed-in user's own record, or to an administrator."""
+    if current_user.id != user_id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="You can only access your own account.")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -66,9 +73,8 @@ def start_scraping_job_for_user(user_id: int, job_id: int):
                 user_id=user_id,
                 title="✅ Scraping Complete",
                 message=f"Found {job.articles_saved} new articles! View them on your Dashboard.",
-                type="success",
-                is_read=False,
-                created_at=datetime.utcnow()
+                notification_type="success",
+                read=False
             )
             db.add(notification)
             db.commit()
@@ -81,9 +87,10 @@ def start_scraping_job_for_user(user_id: int, job_id: int):
 
 @router.post("/preferences")
 async def update_user_preferences(
-    user_id: int,
     preferences: UserPreferencesUpdate,
     background_tasks: BackgroundTasks,
+    user_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -95,6 +102,12 @@ async def update_user_preferences(
     3. Stores the embedding for future personalized retrieval
     4. Automatically starts background scraping to fetch articles
     """
+    # The user is taken from the token; a user_id query parameter is accepted
+    # for backward compatibility but must match the signed-in user (or an admin).
+    if user_id is None:
+        user_id = current_user.id
+    _ensure_self_or_admin(current_user, user_id)
+
     try:
         # Find user
         user = db.query(User).filter(User.id == user_id).first()
@@ -142,9 +155,8 @@ async def update_user_preferences(
                     user_id=user_id,
                     title="🔄 Scraping Started",
                     message=f"Finding articles based on your updated preferences: {', '.join(preferences.topics[:3])}...",
-                    type="info",
-                    is_read=False,
-                    created_at=datetime.utcnow()
+                    notification_type="info",
+                    read=False
                 )
                 db.add(notification)
                 db.commit()
@@ -168,6 +180,8 @@ async def update_user_preferences(
             "user": user.to_dict()
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating preferences: {str(e)}")
@@ -176,6 +190,7 @@ async def update_user_preferences(
 @router.post("/")
 async def create_user(
     user_data: UserCreate,
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Create a new user"""
@@ -212,9 +227,11 @@ async def create_user(
 @router.get("/{user_id}")
 async def get_user(
     user_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get user by ID"""
+    """Get user by ID (own account or admin only)"""
+    _ensure_self_or_admin(current_user, user_id)
     user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
@@ -226,9 +243,12 @@ async def get_user(
 @router.get("/email/{email}")
 async def get_user_by_email(
     email: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get user by email"""
+    """Get user by email (own account or admin only)"""
+    if current_user.email.lower() != email.lower() and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="You can only access your own account.")
     user = db.query(User).filter(User.email == email).first()
 
     if not user:

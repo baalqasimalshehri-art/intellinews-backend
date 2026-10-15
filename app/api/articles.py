@@ -4,6 +4,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 from app.database import get_db
 from app.models.article import Article
+from app.models.user import User
+from app.utils.auth import get_current_user
 from app.services.ranking import ranking_service
 from app.services.openai_service import openai_service
 from app.utils.cache import stats_cache, articles_cache, generate_cache_key
@@ -41,6 +43,7 @@ class ArticleResponse(BaseModel):
 @router.post("/discover", response_model=List[ArticleResponse])
 async def discover_articles(
     request: DiscoverRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -52,6 +55,9 @@ async def discover_articles(
     3. Ranks using hybrid scoring (relevance + freshness)
     4. Generates AI explanations for each ranking
     """
+    if request.userId != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="You can only discover articles for your own account.")
+
     try:
         # Rank articles for the user
         ranked_articles = ranking_service.rank_articles_for_user(
