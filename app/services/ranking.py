@@ -4,6 +4,7 @@ from sqlalchemy import and_
 from datetime import datetime, timedelta
 from app.models.article import Article
 from app.models.ranking import Ranking
+from app.models.user import User
 from app.models.sent_article import SentArticle
 from app.services.retrieval import retrieval_service
 from app.services.openai_service import openai_service
@@ -51,13 +52,17 @@ class RankingService:
         """
         print(f"[RankingService] Ranking articles for user {user_id}, offset={offset}, limit={limit}")
 
-        # Try to get cached rankings first (within TTL window)
-        cached_results = self._get_cached_results_batch(
-            db=db,
-            user_id=user_id,
-            offset=offset,
-            limit=limit
-        )
+        # Cached batches are only safe for interactive discovery, not newsletters.
+        # Newsletters must exclude previously sent articles.
+        cached_results = None
+        if not exclude_sent:
+            cached_results = self._get_cached_results_batch(
+                db=db,
+                user_id=user_id,
+                offset=offset,
+                limit=limit,
+                source_type=source_type
+            )
 
         if cached_results and len(cached_results) >= limit:
             print(f"[RankingService] Using {len(cached_results)} cached rankings (cost savings!)")
@@ -160,7 +165,8 @@ class RankingService:
         db: Session,
         user_id: int,
         offset: int,
-        limit: int
+        limit: int,
+        source_type: str = "both"
     ) -> Optional[List[Dict]]:
         """
         Get a batch of cached rankings for a user
@@ -175,12 +181,14 @@ class RankingService:
             List of cached article dictionaries with rankings, or None if cache miss
         """
         # Get recent rankings (within cache TTL)
-        cache_cutoff = datetime.utcnow() - timedelta(hours=self.cache_ttl_hours)
+        cache_cutoff = self._cache_cutoff(db, user_id)
 
-        rankings = db.query(Ranking)\
+        rankings_query = db.query(Ranking).join(Article, Article.id == Ranking.article_id)\
             .filter(Ranking.user_id == user_id)\
-            .filter(Ranking.created_at >= cache_cutoff)\
-            .order_by(Ranking.final_score.desc())\
+            .filter(Ranking.created_at >= cache_cutoff)
+        if source_type in ("academic", "industry", "financial"):
+            rankings_query = rankings_query.filter(Article.source_type == source_type)
+        rankings = rankings_query.order_by(Ranking.final_score.desc())\
             .offset(offset)\
             .limit(limit)\
             .all()
@@ -221,7 +229,7 @@ class RankingService:
         Returns:
             Cached Ranking object or None if not found
         """
-        cache_cutoff = datetime.utcnow() - timedelta(hours=self.cache_ttl_hours)
+        cache_cutoff = self._cache_cutoff(db, user_id)
 
         return db.query(Ranking)\
             .filter(Ranking.article_id == article_id)\
@@ -229,6 +237,18 @@ class RankingService:
             .filter(Ranking.created_at >= cache_cutoff)\
             .order_by(Ranking.created_at.desc())\
             .first()
+
+    def _cache_cutoff(self, db: Session, user_id: int) -> datetime:
+        """Invalidate old rankings whenever saved user preferences are updated.
+
+        User.updated_at is updated by the existing preferences endpoint, so no
+        schema migration or deletion of ranking history is required.
+        """
+        cutoff = datetime.utcnow() - timedelta(hours=self.cache_ttl_hours)
+        updated_at = db.query(User.updated_at).filter(User.id == user_id).scalar()
+        if updated_at is not None:
+            cutoff = max(cutoff, updated_at)
+        return cutoff
 
     def _save_ranking(
         self,
