@@ -68,6 +68,20 @@ def init_db():
         """))
         conn.commit()
 
+        # One-time backfill. Existing users have no timestamp, so their rankings
+        # from before this change would keep being served for another hour. Stamping
+        # them now retires that last stale batch immediately; afterwards the column
+        # is maintained normally whenever preferences are saved.
+        result = conn.execute(text("""
+            UPDATE users
+            SET preferences_updated_at = NOW()
+            WHERE preferences_updated_at IS NULL
+        """))
+        conn.commit()
+        if result.rowcount:
+            print(f"[DB Migration] Stamped preferences_updated_at for {result.rowcount} existing user(s) — "
+                  f"their cached rankings are now refreshed on next load")
+
     # Migration: clear articles whose summary was saved as an API error string.
     # These were generated before the gpt-4-turbo-preview → gpt-4o-mini model fix and
     # will now be re-summarised the next time the article is processed.
