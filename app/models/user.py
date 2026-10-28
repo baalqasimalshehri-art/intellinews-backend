@@ -31,6 +31,10 @@ class User(Base):
     # Vector embedding of user preferences for semantic matching (1536-d for text-embedding-3-large)
     preferences_embedding = Column(Vector(1536))
 
+    # Set every time topics/keywords change. The ranking cache treats anything
+    # older than this as stale, so new preferences take effect immediately.
+    preferences_updated_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

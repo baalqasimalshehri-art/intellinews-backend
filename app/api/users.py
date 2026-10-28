@@ -66,8 +66,8 @@ def start_scraping_job_for_user(user_id: int, job_id: int):
                 user_id=user_id,
                 title="✅ Scraping Complete",
                 message=f"Found {job.articles_saved} new articles! View them on your Dashboard.",
-                type="success",
-                is_read=False,
+                notification_type="success",
+                read=False,
                 created_at=datetime.utcnow()
             )
             db.add(notification)
@@ -113,6 +113,11 @@ async def update_user_preferences(
 
         user.preferences_embedding = preference_embedding
 
+        # Mark the moment the interests changed. The ranking cache reads this and
+        # treats every ranking made before now as stale, so the Discover page shows
+        # results for the new interests straight away instead of after an hour.
+        user.preferences_updated_at = datetime.utcnow()
+
         db.commit()
         db.refresh(user)
 
@@ -142,8 +147,8 @@ async def update_user_preferences(
                     user_id=user_id,
                     title="🔄 Scraping Started",
                     message=f"Finding articles based on your updated preferences: {', '.join(preferences.topics[:3])}...",
-                    type="info",
-                    is_read=False,
+                    notification_type="info",
+                    read=False,
                     created_at=datetime.utcnow()
                 )
                 db.add(notification)

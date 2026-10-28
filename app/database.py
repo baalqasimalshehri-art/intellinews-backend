@@ -58,6 +58,16 @@ def init_db():
         """))
         conn.commit()
 
+    # Migration: track when a user last changed their topics/keywords. The ranking
+    # cache uses this so preference changes show up immediately instead of waiting
+    # out the one-hour cache window.
+    with engine.connect() as conn:
+        conn.execute(text("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS preferences_updated_at TIMESTAMP
+        """))
+        conn.commit()
+
     # Migration: clear articles whose summary was saved as an API error string.
     # These were generated before the gpt-4-turbo-preview → gpt-4o-mini model fix and
     # will now be re-summarised the next time the article is processed.

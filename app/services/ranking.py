@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from app.models.article import Article
 from app.models.ranking import Ranking
 from app.models.sent_article import SentArticle
+from app.models.user import User
 from app.services.retrieval import retrieval_service
 from app.services.openai_service import openai_service
 
@@ -155,6 +156,24 @@ class RankingService:
 
         return results
 
+    def _cache_cutoff_for_user(self, db: Session, user_id: int) -> datetime:
+        """
+        Oldest ranking that may still be served from cache for this user.
+
+        Normally this is one hour ago, which keeps the cost savings. But if the
+        user changed their topics or keywords more recently than that, we use the
+        moment they changed them instead. Every ranking made before that point was
+        scored against the old interests — including its "why selected" text — so
+        it must not be reused.
+        """
+        ttl_cutoff = datetime.utcnow() - timedelta(hours=self.cache_ttl_hours)
+
+        user = db.query(User).filter(User.id == user_id).first()
+        changed_at = getattr(user, "preferences_updated_at", None) if user else None
+        if changed_at and changed_at > ttl_cutoff:
+            return changed_at
+        return ttl_cutoff
+
     def _get_cached_results_batch(
         self,
         db: Session,
@@ -174,8 +193,8 @@ class RankingService:
         Returns:
             List of cached article dictionaries with rankings, or None if cache miss
         """
-        # Get recent rankings (within cache TTL)
-        cache_cutoff = datetime.utcnow() - timedelta(hours=self.cache_ttl_hours)
+        # Honour the TTL, but never reach back past a preference change
+        cache_cutoff = self._cache_cutoff_for_user(db, user_id)
 
         rankings = db.query(Ranking)\
             .filter(Ranking.user_id == user_id)\
@@ -221,7 +240,7 @@ class RankingService:
         Returns:
             Cached Ranking object or None if not found
         """
-        cache_cutoff = datetime.utcnow() - timedelta(hours=self.cache_ttl_hours)
+        cache_cutoff = self._cache_cutoff_for_user(db, user_id)
 
         return db.query(Ranking)\
             .filter(Ranking.article_id == article_id)\
